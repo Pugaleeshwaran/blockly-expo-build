@@ -1,0 +1,2128 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>rndmfg — Blockly (Python generator)</title>
+
+  <!-- Icons (unchanged) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/brands.min.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Load Blockly once -->
+  <script>
+    (function loadBlockly() {
+      function add(src, next) {
+        var s = document.createElement('script');
+        s.src = src; s.defer = false; s.async = false; s.onload = next || null;
+        document.head.appendChild(s);
+      }
+      add('https://unpkg.com/blockly@10.4.3/blockly_compressed.js', function () {
+        add('https://unpkg.com/blockly@10.4.3/blocks_compressed.js', function () {
+          add('https://unpkg.com/blockly@10.4.3/python_compressed.js', function () {
+            window.__blocklyLoaded = true;
+          });
+        });
+      });
+    })();
+  </script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    :root {
+      --mint: #cfeff2;
+      --panel: #f7fbfc;
+      --grid: #cfe7ec;
+      --shadow: 0 10px 24px rgba(23, 46, 56, .12)
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: var(--mint);
+      font: 500 16px/1.4 Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 72px 1fr;
+      grid-template-columns: 220px 1fr;
+      gap: 14px;
+      height: 100dvh;
+      padding: 14px
+    }
+
+    .brand img {
+      width: 60px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .topbar {
+      grid-column: 1/-1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel);
+      border-radius: 999px;
+      padding: 10px 16px;
+      box-shadow: var(--shadow)
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px
+    }
+
+    .btn-circle {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      box-shadow: var(--shadow);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      cursor: pointer
+    }
+
+    .play {
+      background: #8ee38f
+    }
+
+    .save {
+      background: #f7a9bf
+    }
+
+    .fwd {
+      background: #ffd46b
+    }
+
+    .back {
+      background: #bcd4ff
+    }
+
+    .rail {
+      background: var(--panel);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center
+    }
+
+    .pill {
+      width: 100%;
+      padding: 14px 8px;
+      border-radius: 16px;
+      color: #2b3c47;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .05), var(--shadow)
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 30%;
+      overflow: hidden;
+      gap: 14px;
+      padding: 0 20px;
+    }
+
+    .workspace {
+      position: relative;
+      min-height: 300px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: #e8f4f7
+    }
+
+    .workspace:after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      pointer-events: none
+    }
+
+    #blocklyDiv {
+      position: absolute;
+      inset: 0
+    }
+
+    .code {
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0
+    }
+
+    .code pre {
+      margin: 0;
+      padding: 14px;
+      border-radius: 12px;
+      background: #0d1117;
+      color: #c9d1d9;
+      overflow: auto;
+      min-height: 140px;
+      flex: 1;
+      font: 500 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace
+    }
+
+    /* Simple modal */
+    .box {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 5px 10px;
+      gap: 5px;
+    }
+
+    .box1 {
+      display: flex;
+      align-items: center;
+    }
+
+    .row {
+      text-align: center;
+    }
+
+    .box2 {
+      display: flex;
+    }
+
+    .box button {
+      padding: 10px 15px;
+      background-color: #DDDDDD;
+      border: none;
+      border-radius: 10px;
+      box-shadow: 5px 2px 5px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      color: black;
+      font-size: 16px;
+      transition: all 500ms ease;
+    }
+
+    .box button:hover {
+      background: linear-gradient(to right, #57C785, #2A7B9B);
+    }
+
+    #portSelectionModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000
+    }
+
+    #portSelectionModal {
+      width: 300px;
+      margin: 10% auto;
+      padding: 20px;
+      background: linear-gradient(to right, #DDDDDD, #ffffff);
+      border-radius: 10px;
+      height: fit-content;
+      box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+    }
+
+    #portSelectionModal h3 {
+      margin: 0 0 10px 0
+    }
+
+    #portSelectionModal .row {
+      margin: 6px 0
+    }
+
+    #motorSelectionModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000
+    }
+
+    #motorSelectionModal {
+      width: 300px;
+      margin: 10% auto;
+      padding: 20px;
+      background: linear-gradient(to right, #ffdede, #13f7ff);
+      border-radius: 10px;
+      height: fit-content;
+      box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+    }
+
+    #motorSelectionModal h3 {
+      margin: 0 0 10px 0
+    }
+
+    #motorSelectionModal .row {
+      margin: 6px 0
+    }
+
+    #ledPinSelectionModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000
+    }
+
+    /* LED pin modal overlay, same behavior as other modals */
+    #ledPinSelectionModal {
+      width: 300px;
+      margin: auto auto;
+      padding: 20px;
+      background: linear-gradient(#37BEF0, #25C473);
+      border-radius: 10px;
+      height: fit-content;
+      box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+    }
+
+    @media screen and (max-width: 1200px) {
+      .app {
+        grid-template-columns: 1fr;
+        width: 99vw;
+      }
+
+      .rail {
+        display: none;
+      }
+
+      .main {
+        grid-template-columns: 1fr 30%;
+        overflow: auto;
+      }
+    }
+
+    /* Servo modal styling */
+    #servoSelectionModal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      z-index: 1000;
+      background: rgba(0, 0, 0, .35);
+    }
+
+    #servoSelectionModal .servo-box {
+      width: 320px;
+      margin: 10% auto;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+      font-family: system-ui, sans-serif;
+    }
+
+    #servoSelectionModal h3 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .servo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .servo-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: #f4f7fb;
+      cursor: pointer;
+    }
+
+    .servo-row input[type="radio"] {
+      margin: 0;
+    }
+
+    .servo-name {
+      min-width: 80px;
+      font-weight: 600;
+    }
+
+    .servo-pins {
+      display: flex;
+      gap: 4px;
+    }
+
+    .pin {
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .pin-gnd {
+      background: #555;
+    }
+
+    .pin-vcc {
+      background: #e74c3c;
+    }
+
+    .pin-sig {
+      background: #3498db;
+    }
+
+    .servo-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .servo-actions button {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #ddd;
+      transition: background .2s;
+    }
+
+    .servo-actions button:hover {
+      background: #ccc;
+    }
+
+    .blocklyText {
+      font-size: 16px !important;
+    }
+
+    .blocklyHtmlInput,
+    .blocklyDropdownText {
+      font-size: 16px !important;
+    }
+
+    /* ==== EXTRA DESIGN / THEME FROM CODE A ==== */
+
+    /* fallback base colours (unused once gradients apply) */
+    .block-while .blocklyPath {
+      fill: #facc15;
+    }
+
+    .block-ifelse .blocklyPath {
+      fill: #fb923c;
+    }
+
+    .block-doonoff .blocklyPath {
+      fill: #38bdf8;
+    }
+
+    .block-servo .blocklyPath {
+      fill: #a855f7;
+    }
+
+    /* Blockly main SVG area */
+    .blocklySvg {
+      background: #e8f4f7 !important;
+    }
+
+    .blocklyMainBackground {
+      fill: #ffffff !important;
+    }
+
+    .blocklyToolboxDiv {
+      background: rgba(15, 23, 42, 0.9) !important;
+      border-radius: 16px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+    }
+
+    .blocklyTreeLabel {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      fill: #e5e7eb !important;
+    }
+
+    .blocklyTreeRow.blocklyTreeSelected {
+      background: linear-gradient(135deg,
+          rgba(56, 189, 248, 1),
+          rgb(0, 98, 255)) !important;
+      border-radius: 999px;
+    }
+
+    .blocklyFlyoutBackground {
+      fill: rgba(15, 23, 42, 1) !important;
+    }
+
+    .blocklyFlyoutLabelText {
+      fill: #9ca3af !important;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .blocklyScrollbarHandle {
+      fill: rgba(148, 163, 184, 0.9) !important;
+    }
+
+    .blocklyScrollbarBackground {
+      fill: transparent !important;
+    }
+
+    .blocklyText {
+      fill: #000000 !important;
+    }
+
+    /* Remove the solid blue insertion block (ghost block while dragging)  */
+    .blocklyInsertionMarker>.blocklyPath {
+      fill: none !important;
+      stroke: none !important;
+      stroke-width: 2px !important;
+    }
+
+    .blocklyInsertionMarker>.blocklyPathLight {
+      display: none !important;
+    }
+
+    /* ===== LIGHT, ATTRACTIVE GRADIENTS ===== */
+
+    /* default gradient for ALL blocks */
+    .block-grad-any .blocklyPath {
+      fill: url(#gradDefault) !important;
+      stroke: rgba(15, 23, 42, 0.25);
+      stroke-width: 1px;
+      stroke-linejoin: round;
+      paint-order: stroke;
+    }
+
+    /* overrides for specific block types (different colors) */
+    .block-while .blocklyPath {
+      fill: url(#gradLoop) !important;
+    }
+
+    .block-ifelse .blocklyPath {
+      fill: url(#gradIfElse) !important;
+    }
+
+    .block-doonoff .blocklyPath {
+      fill: url(#gradDigital) !important;
+    }
+
+    .block-servo .blocklyPath {
+      fill: url(#gradServo) !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="brand" style="display:flex;align-items:center;gap:10px">
+        <img src="./assets/blockly/logo.png" alt="weblogo" style="width:60px; height:auto; object-fit:contain;">
+        <div style="font-size:24px;font-weight:900;text-transform:uppercase">rndmfg</div>
+      </div>
+      <div class="btns">
+        <!-- New: Connect Board button (for USB on desktop) -->
+        <button class="btn-circle back" id="btnConnect" title="Connect Board">
+          <i class="fa-solid fa-plug"></i>
+        </button>
+        <button class="btn-circle fwd" id="btnWifi" title="WiFi Boot">
+          <i class="fa-solid fa-wifi"></i>
+        </button>
+        <button class="btn-circle play" id="btnRun" title="Run ▶"><i class="fa-solid fa-copy"></i></button>
+
+
+        <button class="btn-circle save" id="btnSave" title="Save"><i class="fa-solid fa-download"></i></button>
+        <button class="btn-circle fwd" id="btnLoad" title="Load"><i class="fa-brands fa-openid"></i></button>
+        <button class="btn-circle back" id="btnClear" title="Clear"><i class="fa-solid fa-broom"></i></button>
+      </div>
+    </div>
+
+    <!-- Left rail -->
+    <aside class="rail">
+      <div class="pill" style="background:#d9f4fb">Motion</div>
+      <div class="pill" style="background:#ffd8d1">Ideas</div>
+      <div class="pill" style="background:#fff2b9">Search</div>
+      <div class="pill" style="background:#e4dcff">Brain</div>
+    </aside>
+
+    <!-- Main -->
+    <section class="main">
+      <div class="workspace">
+        <div id="blocklyDiv"></div>
+      </div>
+      <div class="code">
+        <header style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Python (generated)</strong><small id="status">ready</small>
+        </header>
+        <pre id="pyOut"># drag & drop blocks to generate Python…</pre>
+        <div id="responseDisplay">Waiting for response...</div>
+
+      </div>
+    </section>
+  </div>
+
+  <!-- Toolbox -->
+  <xml id="toolbox" style="display:none">
+    <category name="Digital in" colour="#FFD46B">
+      <block type="port_on"></block>
+      <block type="port_off"></block>
+      <block type="sen_ultrasonic"></block>
+      <block type="sen_temp"></block>
+    </category>
+    <category name="Digitalout" colour="#81d4ed">
+      <block type="do_onoff"></block>
+      <block type="do_dc_motor"></block>
+      <block type="do_servo"></block>
+      <block type="do_led"></block>
+      <block type="bt_send"></block>
+    </category>
+    <category name="Delay" colour="#92e08d">
+      <block type="ctl_delay"></block>
+      <block type="do_led_param"></block>
+
+    </category>
+    <category name="Loop" colour="#FF6347">
+      <block type="lp_while"></block>
+      <block type="lp_break"></block>
+      <block type="lp_repeat_count"></block>
+      <block type="lp_label"></block>
+    </category>
+    <category name="Digitalin" colour="#FFB56A">
+      <block type="din_if_else"></block>
+      <block type="din_ir"></block>
+      <block type="din_sound"></block>
+      <block type="din_metal"></block>
+      <block type="din_read"></block>
+    </category>
+    <sep></sep>
+    <category name="Logic" colour="#4C97FF">
+      <block type="logic_compare"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_boolean"></block>
+    </category>
+    <category name="Maths" colour="#9ACD32">
+      <block type="math_number">
+        <field name="NUM">1</field>
+      </block>
+    </category>
+    <category name="Function" custom="PROCEDURE" colour="#FF1493"></category>
+    <category name="Variable" custom="VARIABLE" colour="#0000FF"></category>
+  </xml>
+
+  <!-- Port selection modal -->
+  <div id="portSelectionModal">
+    <div class="box">
+      <h3>Select Port(s)</h3>
+      <div class="box1">
+        <div class="row"><label><input type="checkbox" id="port2"> Port 2</label></div>
+        <div class="row"><label><input type="checkbox" id="port3"> Port 3</label></div>
+        <div class="row"><label><input type="checkbox" id="port4"> Port 4</label></div>
+        <div class="row"><label><input type="checkbox" id="port5"> Port 5</label></div>
+        <div class="row"><label><input type="checkbox" id="port6"> Port 6</label></div>
+        <div class="row"><label><input type="checkbox" id="port7"> Port 7</label></div>
+        <div class="row"><label><input type="checkbox" id="port8"> Port 8</label></div>
+        <div class="row"><label><input type="checkbox" id="port9"> Port 9</label></div>
+      </div>
+      <div class="box2">
+        <div class="row"><label><input type="checkbox" id="port10"> Port 10</label></div>
+        <div class="row"><label><input type="checkbox" id="port11"> Port 11</label></div>
+        <div class="row"><label><input type="checkbox" id="port12"> Port 12</label></div>
+        <div class="row"><label><input type="checkbox" id="port13"> Port 13</label></div>
+        <div class="row"><label><input type="checkbox" id="port14"> Port 14</label></div>
+        <div class="row"><label><input type="checkbox" id="port15"> Port 15</label></div>
+        <div class="row"><label><input type="checkbox" id="port16"> Port 16</label></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button onclick="savePortSelection()">Save</button>
+        <button onclick="closePortModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Motor selection modal -->
+  <div id="motorSelectionModal" style="display:none;">
+    <div class="box">
+      <h3>Select Motor(s)</h3>
+      <div class="box1">
+        <div class="row"><label><input type="checkbox" id="motorM1"> M1</label></div>
+        <div class="row"><label><input type="checkbox" id="motorM2"> M2</label></div>
+        <div class="row"><label><input type="checkbox" id="motorM3"> M3</label></div>
+        <div class="row"><label><input type="checkbox" id="motorM4"> M4</label></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button onclick="saveMotorSelection()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Servo selection modal -->
+  <div id="servoSelectionModal" style="display:none;">
+    <div class="servo-box">
+      <h3>Select Servo Port</h3>
+
+      <div class="servo-list">
+        <label class="servo-row">
+          <input type="radio" name="servoPort" value="S1">
+          <div class="servo-name">Servo S1</div>
+          <div class="servo-pins">
+            <span class="pin pin-gnd">GND</span>
+            <span class="pin pin-vcc">VCC</span>
+            <span class="pin pin-sig">SIG</span>
+          </div>
+        </label>
+
+        <label class="servo-row">
+          <input type="radio" name="servoPort" value="S2">
+          <div class="servo-name">Servo S2</div>
+          <div class="servo-pins">
+            <span class="pin pin-gnd">GND</span>
+            <span class="pin pin-vcc">VCC</span>
+            <span class="pin pin-sig">SIG</span>
+          </div>
+        </label>
+
+        <label class="servo-row">
+          <input type="radio" name="servoPort" value="S3">
+          <div class="servo-name">Servo S3</div>
+          <div class="servo-pins">
+            <span class="pin pin-gnd">GND</span>
+            <span class="pin pin-vcc">VCC</span>
+            <span class="pin pin-sig">SIG</span>
+          </div>
+        </label>
+
+        <label class="servo-row">
+          <input type="radio" name="servoPort" value="S4">
+          <div class="servo-name">Servo S4</div>
+          <div class="servo-pins">
+            <span class="pin pin-gnd">GND</span>
+            <span class="pin pin-vcc">VCC</span>
+            <span class="pin pin-sig">SIG</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="servo-actions">
+        <button type="button" onclick="saveServoSelection()">Save</button>
+        <button type="button" onclick="closeServoModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <!-- LED pin selection modal -->
+  <div id="ledPinSelectionModal">
+    <div class="box">
+      <h3>Select LED Pin(s)</h3>
+
+      <div class="box1">
+        <div class="row"><label><input type="checkbox" id="ledPinD2"> D2</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD3"> D3</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD4"> D4</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD5"> D5</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD6"> D6</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD7"> D7</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD8"> D8</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinD9"> D9</label></div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button type="button" onclick="saveLedPinSelection()">Save</button>
+        <button type="button" onclick="closeLedPinModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    let workspace = null;
+
+    /* --- wait for Blockly --- */
+    async function waitForBlockly(timeoutMs = 5000) {
+      const t0 = Date.now();
+      while (!(window.__blocklyLoaded && window.Blockly && Blockly.Python)) {
+        await new Promise(r => setTimeout(r, 50));
+        if (Date.now() - t0 > timeoutMs) break;
+      }
+      return !!(window.__blocklyLoaded && window.Blockly && Blockly.Python);
+    }
+
+    /* --- define blocks (including modal-driven blocks) --- */
+    function defineBlocks() {
+      Blockly.defineBlocksWithJsonArray([
+        {
+          type: "start",
+          message0: "Start",
+          style: "start_block",
+          output: null,
+          nextStatement: null
+        },
+        {
+          type: "port_on",
+          message0: "DigitalOut ON %1 %2",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            }
+          ],
+          colour: "#ffb56a",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_on_img_click"]
+        },
+        {
+          type: "port_off",
+          message0: "DigitalOut OFF %1 %2",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            }
+          ],
+          colour: "#ffb56a",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click"]
+        },
+        {
+          type: "sen_ultrasonic",
+          message0: "ultrasonic distance on port %1",
+          args0: [
+            {
+              type: "field_number",
+              name: "PORT",
+              value: 2,
+              min: 0,
+              max: 99
+            }
+          ],
+          style: "control_blocks",
+          previousStatement: null,
+          nextStatement: null
+          // remove: output: "Number"
+        }
+        ,
+        {
+          type: "sen_temp",
+          message0: "temperature on port %1",
+          args0: [
+            {
+              type: "field_number",
+              name: "PORT",
+              value: 3,
+              min: 0,
+              max: 99
+            }
+          ],
+          style: "control_blocks",
+          previousStatement: null,
+          nextStatement: null
+        },
+
+
+        {
+          type: "do_onoff",
+          message0: "digital write pins %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "doonoff_border_class"]
+        },
+        {
+          type: "do_dc_motor",
+          message0: "DC Motor %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "MOTORS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "SPEED",
+              value: 60,
+              min: -100,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_label",
+              text: "%"
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["motor_image_click"]
+        },
+        {
+          type: "do_servo",
+          message0: "servo on %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "SERVO_PORT",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "ANG",
+              value: 90,
+              min: 0,
+              max: 180,
+              precision: 1
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["servo_image_click", "servo_border_class"]
+        },
+        {
+          type: "bt_send",
+          message0: "Bluetooth send %1",
+          args0: [
+            {
+              type: "input_value",
+              name: "TEXT"
+            }
+          ],
+          previousStatement: null,
+          nextStatement: null,
+          style: "control_blocks"
+        },
+
+        {
+          type: "do_led",
+          message0: "LED %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "doonoff_border_class"]
+        },
+        {
+          type: "ctl_delay",
+          message0: "delay %1 ms",
+          args0: [{
+            type: "field_number",
+            name: "MS",
+            value: 500,
+            min: 0,
+            max: 600000
+          }],
+          style: "led_blocks",
+          previousStatement: null,
+          nextStatement: null
+        },
+        {
+          type: "lp_while",
+          message0: "while %1",
+          args0: [{ type: "input_value", name: "COND", check: "Boolean" }],
+          message1: "do %1",
+          args1: [{ type: "input_statement", name: "DO" }],
+          style: "start_block",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["while_border_class"]
+        },
+        {
+          type: "lp_break",
+          message0: "break",
+          style: "start_block",
+          previousStatement: null,
+          nextStatement: null
+        },
+        {
+          type: "lp_repeat_count",
+          message0: "repeat %1 times",
+          args0: [{
+            type: "field_number",
+            name: "COUNT", value: 4, min: 0, max: 100000
+          }],
+          message1: "do %1",
+          args1: [{
+            type: "input_statement",
+            name: "DO"
+          }],
+          style: "start_block",
+          previousStatement: null,
+          nextStatement: null
+        },
+        {
+          type: "lp_label",
+          message0: "label %1",
+          args0: [{
+            type: "field_input",
+            name: "NAME",
+            text: "lbl1"
+          }],
+          style: 'start_block',
+          previousStatement: null,
+          nextStatement: null
+        },
+        {
+          type: "din_if_else",
+          message0: "if %1",
+          args0: [{ type: "input_value", name: "COND", check: "Boolean" }],
+          message1: "do %1",
+          args1: [{ type: "input_statement", name: "DO" }],
+          message2: "else %1",
+          args2: [{ type: "input_statement", name: "ELSE" }],
+          style: "control_blocks",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["ifelse_border_class"]
+        },
+        {
+          type: "din_ir",
+          message0: "IR sensor pin %1",
+          args0: [{
+            type: "field_number",
+            name: "PIN", value: 4, min: 0, max: 99
+          }],
+          style: "control_blocks",
+          output: "Boolean"
+        },
+        {
+          type: "din_sound",
+          message0: "Sound sensor pin %1",
+          args0: [{
+            type: "field_number",
+            name: "PIN",
+            value: 5, min: 0,
+            max: 99
+          }],
+          style: "control_blocks",
+          output: "Boolean"
+        },
+        {
+          type: "din_metal",
+          message0: "Metal sensor pin %1",
+          args0: [{
+            type: "field_number",
+            name: "PIN",
+            value: 6,
+            min: 0,
+            max: 99
+          }],
+          style: "control_blocks",
+          output: "Boolean"
+        },
+        {
+          type: "din_read",
+          message0: "digital read pin %1",
+          args0: [{
+            type: "field_number",
+            name: "PIN",
+            value: 7,
+            min: 0,
+            max: 99
+          }],
+          style: "control_blocks",
+          output: "Boolean"
+        },
+        {
+          type: "do_led_param",
+          message0: "LED write %1 %2 value %3 time %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",   // keep PORTS here
+              text: ""
+            },
+            {
+              type: "input_value",
+              name: "VAL"
+            },
+            {
+              type: "input_value",
+              name: "VAL2"
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["led_pin_image_click", "doonoff_border_class"]
+        }
+
+
+
+      ]);
+
+      Blockly.Extensions.register('port_on_img_click', function () {
+        const imgField = this.getField('IMG');
+        if (!imgField) return;
+        imgField.setOnClickHandler(() => {
+          openPortSelectionModal(this);
+        });
+      });
+
+      Blockly.Extensions.register('port_image_click', function () {
+        const imgField = this.getField('IMG');
+        if (!imgField) return;
+        imgField.setOnClickHandler(() => {
+          openPortSelectionModal(this);
+        });
+      });
+
+      Blockly.Extensions.register('motor_image_click', function () {
+        const imgField = this.getField('IMG');
+        imgField.setOnClickHandler(() => {
+          openMotorSelectionModal(this);
+        });
+      });
+
+      Blockly.Extensions.register('servo_image_click', function () {
+        const imgField = this.getField('IMG');
+        if (!imgField) return;
+        imgField.setOnClickHandler(() => {
+          openServoSelectionModal(this);
+        });
+      });
+
+      /* ===== BORDER / TYPE CLASS EXTENSIONS (for gradients) ===== */
+      Blockly.Extensions.register('while_border_class', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('block-while');
+          }
+        });
+      });
+
+      Blockly.Extensions.register('ifelse_border_class', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('block-ifelse');
+          }
+        });
+      });
+
+      Blockly.Extensions.register('doonoff_border_class', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('block-doonoff');
+          }
+        });
+      });
+
+      Blockly.Extensions.register('servo_border_class', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('block-servo');
+          }
+        });
+      });
+      Blockly.Extensions.register('led_pin_image_click', function () {
+        const imgField = this.getField('IMG');
+        if (!imgField) return;
+        imgField.setOnClickHandler(() => {
+          openLedPinSelectionModal(this);
+        });
+      });
+
+
+
+    }
+
+    /* --- generators --- */
+    function defineGenerators() {
+      const py = Blockly.Python;
+      Blockly.Python['do_led'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+        const stateVal = block.getFieldValue('STATE') || '0';
+
+        const ports = portsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!ports.length) {
+          return "# do_led: no ports selected\n";
+        }
+
+        const fn = (stateVal === '1') ? 'robot.led_on' : 'robot.led_off';
+
+        return ports.map(p => `${fn}(${p})\n`).join('');
+      };
+      Blockly.Python['bt_send'] = function (block) {
+        const txt = Blockly.Python.valueToCode(block, 'TEXT', Blockly.Python.ORDER_NONE) || "''";
+        // Example: send text over Bluetooth
+        return `robot.bt_send(${txt})\n`;
+      };
+      Blockly.Python['sen_ultrasonic'] = function (block) {
+        const port = block.getFieldValue('PORT') || 0;
+        // Statement style: maybe store or print the distance
+        return `distance = robot.ultrasonic_cm(${port})\n`;
+      };
+
+      Blockly.Python['sen_temp'] = function (block) {
+        const port = block.getFieldValue('PORT') || 0;
+        // example: store temperature into a global variable "temperature"
+        return `temperature = robot.temperature_c(${port})\n`;
+      };
+
+
+      Blockly.Python['do_onoff'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+        const stateVal = block.getFieldValue('STATE') || '0';
+
+        const ports = portsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!ports.length) {
+          return "# do_onoff: no ports selected\n";
+        }
+
+        const fn = (stateVal === '1') ? 'robot.port_on' : 'robot.port_off';
+        return ports.map(p => `${fn}(${p})\n`).join('');
+      };
+
+      Blockly.Python['port_on'] = function (block) {
+        var ports = block.getFieldValue('PORTS');
+        var portList = ports.split(',').map(s => s.trim());
+        var code = '';
+        portList.forEach(function (port) {
+          code += `robot.port_on(${port})\n`;
+        });
+        return code;
+      };
+
+      Blockly.Python['port_off'] = function (block) {
+        var ports = block.getFieldValue('PORTS');
+        var portList = ports.split(',').map(s => s.trim());
+        var code = '';
+        portList.forEach(function (port) {
+          code += `robot.port_off(${port})\n`;
+        });
+        return code;
+      };
+
+      Blockly.Python['do_dc_motor'] = function (block) {
+        const speed = block.getFieldValue('SPEED') || 0;
+        const motors = (block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+        if (motors.length === 0) {
+          return "# No motors selected\n";
+        }
+
+        let code = "";
+        motors.forEach(motor => {
+          code += `robot.dc_motor("${motor}", ${speed})\n`;
+        });
+
+        return code;
+      };
+
+      py['start'] = () => 'start()\n';
+
+      Blockly.Python['do_servo'] = function (block) {
+        const servoPort = block.getFieldValue('SERVO_PORT') || '';
+        const angle = block.getFieldValue('ANG') || 0;
+
+        if (!servoPort) {
+          return "# do_servo: no servo port selected\n";
+        }
+        return `robot.servo_write('${servoPort}', ${angle})\n`;
+      };
+
+      Blockly.Python['ctl_delay'] = function (block) {
+        const ms = block.getFieldValue('MS') || 0;
+        return `robot.delay_ms(${ms})\n`;
+      };
+
+      py['lp_while'] = b => {
+        const cond = py.valueToCode(b, 'COND', py.ORDER_NONE) || 'False';
+        const body = py.statementToCode(b, 'DO') || '  pass\n';
+        return `while ${cond}:\n${body}`;
+      };
+
+      py['lp_break'] = () => 'break\n';
+
+      py['lp_repeat_count'] = b => {
+        const n = +b.getFieldValue('COUNT') || 0;
+        const body = py.statementToCode(b, 'DO') || '  pass\n';
+        return `for _ in range(${n}):\n${body}`;
+      };
+
+      py['lp_label'] = b => `# label: ${b.getFieldValue('NAME') || 'lbl1'}\n`;
+
+      py['din_if_else'] = b => {
+        const cond = py.valueToCode(b, 'COND', py.ORDER_NONE) || 'False';
+        const do_ = py.statementToCode(b, 'DO') || '  pass\n';
+        const el_ = py.statementToCode(b, 'ELSE') || '  pass\n';
+        return `if ${cond}:\n${do_}else:\n${el_}`;
+      };
+      Blockly.Python['do_led_param'] = function (block) {
+        const pinsTxt = block.getFieldValue('PORTS') || '';   // 🔴 PINS → PORTS
+
+        const valueCode1 =
+          Blockly.Python.valueToCode(block, 'VAL', Blockly.Python.ORDER_NONE) || '0';
+
+        const valueCode2 =
+          Blockly.Python.valueToCode(block, 'VAL2', Blockly.Python.ORDER_NONE) || '0';
+
+        const pins = pinsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!pins.length) {
+          return "# do_led_param: no pins selected\n";
+        }
+
+        let code = '';
+        pins.forEach(pin => {
+          // using 'D3' style names:
+          code += `led_blink('${pin}', ${valueCode1}, ${valueCode2})\n`;
+        });
+
+        return code;
+      };
+
+
+
+
+
+      py['din_ir'] = b => [`robot.ir_detected(${b.getFieldValue('PIN')})`, py.ORDER_ATOMIC];
+      py['din_sound'] = b => [`robot.sound_detected(${b.getFieldValue('PIN')})`, py.ORDER_ATOMIC];
+      py['din_metal'] = b => [`robot.metal_detected(${b.getFieldValue('PIN')})`, py.ORDER_ATOMIC];
+      py['din_read'] = b => [`bool(robot.digital_read(${b.getFieldValue('PIN')}))`, py.ORDER_ATOMIC];
+    }
+
+    /* --- modal wiring --- */
+    let currentPortBlock = null;
+    const ALL_PORT_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    function openPortSelectionModal(block) {
+      currentPortBlock = block;
+      const txt = block.getFieldValue('PORTS') || '';
+      const selectedSet = new Set(
+        txt.split(',').map(s => s.trim()).filter(Boolean)
+      );
+
+      ALL_PORT_NUMBERS.forEach(p => {
+        const cb = document.getElementById('port' + p);
+        if (cb) cb.checked = selectedSet.has(String(p));
+      });
+
+      document.getElementById('portSelectionModal').style.display = 'block';
+    }
+
+    function closePortModal() {
+      document.getElementById('portSelectionModal').style.display = 'none';
+      currentPortBlock = null;
+    }
+
+    function savePortSelection() {
+      if (!currentPortBlock) { closePortModal(); return; }
+
+      const sel = [];
+      ALL_PORT_NUMBERS.forEach(p => {
+        const cb = document.getElementById('port' + p);
+        if (cb && cb.checked) sel.push(String(p));
+      });
+
+      const label = sel.length ? sel.join(',') : '—';
+      currentPortBlock.setFieldValue(label, 'PORTS');
+
+      closePortModal();
+    }
+
+    let currentMotorBlock = null;
+
+    function openMotorSelectionModal(block) {
+      currentMotorBlock = block;
+      const selectedMotors = new Set((block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()));
+
+      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
+        const checkbox = document.getElementById('motor' + motor);
+        if (checkbox) checkbox.checked = selectedMotors.has(motor);
+      });
+
+      document.getElementById('motorSelectionModal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('motorSelectionModal').style.display = 'none';
+    }
+
+    function saveMotorSelection() {
+      if (!currentMotorBlock) { closeModal(); return; }
+
+      const selected = [];
+      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
+        const checkbox = document.getElementById('motor' + motor);
+        if (checkbox && checkbox.checked) selected.push(motor);
+      });
+
+      const label = selected.length ? selected.join(',') : '—';
+      currentMotorBlock.setFieldValue(label, 'MOTORS');
+
+      closeModal();
+    }
+
+    /* ==== SERVO MODAL ==== */
+    let currentServoBlock = null;
+
+    function openServoSelectionModal(block) {
+      currentServoBlock = block;
+      const currentPort = block.getFieldValue('SERVO_PORT') || '';
+
+      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
+      radios.forEach(r => {
+        r.checked = (r.value === currentPort);
+      });
+
+      document.getElementById('servoSelectionModal').style.display = 'block';
+    }
+
+    function closeServoModal() {
+      document.getElementById('servoSelectionModal').style.display = 'none';
+      currentServoBlock = null;
+    }
+
+    function saveServoSelection() {
+      if (!currentServoBlock) { closeServoModal(); return; }
+
+      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
+      let selectedValue = '';
+      radios.forEach(r => {
+        if (r.checked) selectedValue = r.value;
+      });
+
+      if (!selectedValue) {
+        alert('Please select a servo port.');
+        return;
+      }
+
+      currentServoBlock.setFieldValue(selectedValue, 'SERVO_PORT');
+      closeServoModal();
+    }
+    /* ==== LED PIN MODAL ==== */
+    let currentLedBlock = null;
+    const LED_PIN_NAMES = ['D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9'];
+
+    function openLedPinSelectionModal(block) {
+      currentLedBlock = block;
+
+      const txt = block.getFieldValue('PORTS') || '';   // 🔴 changed PINS → PORTS
+      const selected = new Set(
+        txt.split(',').map(s => s.trim()).filter(Boolean)
+      );
+
+      LED_PIN_NAMES.forEach(pin => {
+        const cb = document.getElementById('ledPin' + pin);
+        if (cb) cb.checked = selected.has(pin);
+      });
+
+      document.getElementById('ledPinSelectionModal').style.display = 'block';
+    }
+
+    function closeLedPinModal() {
+      document.getElementById('ledPinSelectionModal').style.display = 'none';
+      currentLedBlock = null;
+    }
+
+    function saveLedPinSelection() {
+      if (!currentLedBlock) {
+        closeLedPinModal();
+        return;
+      }
+
+      const sel = [];
+      LED_PIN_NAMES.forEach(pin => {
+        const cb = document.getElementById('ledPin' + pin);
+        if (cb && cb.checked) sel.push(pin);
+      });
+
+      const label = sel.length ? sel.join(',') : '—';
+      currentLedBlock.setFieldValue(label, 'PORTS');   // 🔴 changed PINS → PORTS
+
+      closeLedPinModal();
+    }
+
+
+
+    // ---- Add multiple gradient defs into Blockly SVG (from Code A) ----
+    function addGradientDefs() {
+      const svg = document.querySelector('svg.blocklySvg');
+
+      if (!svg) {
+        setTimeout(addGradientDefs, 50);
+        return;
+      }
+
+      let defs = svg.querySelector('defs');
+      if (!defs) {
+        defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        svg.prepend(defs);
+      }
+
+      if (svg.querySelector('#gradDefault')) return; // already added
+
+      function makeLinearGradient(id, stops) {
+        const grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+        grad.setAttribute('id', id);
+        grad.setAttribute('x1', '0%');
+        grad.setAttribute('y1', '0%');
+        grad.setAttribute('x2', '0%');
+        grad.setAttribute('y2', '100%');
+
+        stops.forEach(s => {
+          const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+          stop.setAttribute('offset', s.offset);
+          stop.setAttribute('stop-color', s.color);
+          stop.setAttribute('stop-opacity', s.opacity);
+          grad.appendChild(stop);
+        });
+        defs.appendChild(grad);
+      }
+
+      makeLinearGradient('gradDefault', [
+        { offset: '0%', color: '#a5f3fc', opacity: 1 },
+        { offset: '100%', color: '#60a5fa', opacity: 1 }
+      ]);
+
+      makeLinearGradient('gradLoop', [
+        { offset: '0%', color: '#facc15', opacity: 1 },
+        { offset: '100%', color: '#fb923c', opacity: 1 }
+      ]);
+
+      makeLinearGradient('gradIfElse', [
+        { offset: '0%', color: '#fb923c', opacity: 1 },
+        { offset: '100%', color: '#f97316', opacity: 1 }
+      ]);
+
+      makeLinearGradient('gradDigital', [
+        { offset: '0%', color: '#38bdf8', opacity: 1 },
+        { offset: '100%', color: '#22c55e', opacity: 1 }
+      ]);
+
+      makeLinearGradient('gradServo', [
+        { offset: '0%', color: '#a855f7', opacity: 1 },
+        { offset: '100%', color: '#ec4899', opacity: 1 }
+      ]);
+      makeLinearGradient('gradadd', [
+        { offset: '0%', color: '#ff33cc', opacity: 1 },
+        { offset: '100%', color: '#ff33cc', opacity: 1 }
+      ]);
+    }
+
+    // add .block-grad-any class to every block so default gradient applies
+    function applyGradientClasses(workspace) {
+      function markAll() {
+        const blocks = workspace.getAllBlocks(false);
+        blocks.forEach(b => {
+          if (b.svgGroup_) {
+            b.svgGroup_.classList.add('block-grad-any');
+          }
+        });
+      }
+      markAll();
+      workspace.addChangeListener(markAll);
+    }
+
+    // Remove blue selection glow (from Code A)
+    function killBlueSelection() {
+      const style = document.createElement('style');
+      style.textContent = `
+        svg.blocklySvg .blocklySelected {
+          filter: none !important;
+        }
+        svg.blocklySvg .blocklySelected > .blocklyPath {
+          stroke: none !important;
+          stroke-width: 0 !important;
+        }
+        svg.blocklySvg .blocklySelected > .blocklyPathLight {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+
+
+    // ===== Desktop: Web Serial USB to STM32 =====
+    /* ============================================
+       ==========  WEB SERIAL USB (FIXED) =========
+       ============================================ */
+
+    let stm32Port = null;
+    let stm32Writer = null;
+    let stm32Encoder = new TextEncoder();
+
+    /* ---- CONNECT TO STM32 ---- */
+    async function connectStm32() {
+      if (!("serial" in navigator)) {
+        alert("Web Serial not supported. Use Chrome/Edge desktop.");
+        return;
+      }
+
+      try {
+        // Choose device
+        stm32Port = await navigator.serial.requestPort();
+        await stm32Port.open({ baudRate: 115200 });
+
+        // If writer exists, unlock it
+        if (stm32Port.writable.locked && stm32Writer) {
+          try {
+            stm32Writer.releaseLock();
+          }
+          catch (e) {
+            console.log(e)
+          }
+        }
+
+        // Create ONE writer
+        stm32Writer = stm32Port.writable.getWriter();
+        listenForData();
+        alert("Connected to board!");
+        console.log("STM32 connected.");
+      } catch (e) {
+        console.error("Failed to open port", e);
+        alert("Connection failed");
+      }
+    }
+
+    /* ---- SEND PYTHON TO STM32 (RAW PASTE MODE — FIXED) ---- */
+    async function sendCommandToStm32(code) {
+      if (!stm32Port || !stm32Writer) {
+        alert("Board not connected");
+        return;
+      }
+
+      // Auto-fix locked stream if necessary
+      if (stm32Port.writable.locked && !stm32Writer) {
+        console.warn("Stream locked — resetting writer");
+        stm32Writer = stm32Port.writable.getWriter();
+      }
+
+      try {
+        console.log("Uploading via raw paste mode...");
+
+        // Enter paste mode (send the control character)
+        await stm32Writer.write(stm32Encoder.encode("\x05"));
+
+        // Send full code block
+        await stm32Writer.write(stm32Encoder.encode(code));
+
+        // Execute the code (using a control character for execution)
+        await stm32Writer.write(stm32Encoder.encode("\x04"));
+        await stm32Writer.write(stm32Encoder.encode("\r\n"));
+
+        console.log("Upload complete.");
+      } catch (err) {
+        console.error("Serial upload error:", err);
+      }
+    }
+
+
+    /* ---- OPTIONAL: DISCONNECT SAFELY ---- */
+    async function disconnectStm32() {
+      try {
+        if (stm32Writer) {
+          await stm32Writer.close?.();
+          stm32Writer.releaseLock();
+        }
+        await stm32Port?.close?.();
+        stm32Port = null;
+        stm32Writer = null;
+        console.log("Disconnected.");
+      } catch (e) {
+        console.error("Error closing port:", e);
+      }
+    }
+
+
+    async function listenForData() {
+      if (!stm32Port) return;
+
+      const decoder = new TextDecoder();
+      const reader = stm32Port.readable.getReader();
+
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Split by line
+          let lines = buffer.split("\n");
+          buffer = lines.pop(); // keep incomplete line
+
+          for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+
+            console.log("USB RX:", line);
+            handleBoardMessage(line);
+          }
+        }
+      } catch (e) {
+        console.error("USB read error:", e);
+      }
+    }
+
+
+
+    // ------------------wifi-----------
+    async function sendCodeToESP32_MQTT(code) {
+      const mqttClient = mqtt.connect('wss://3921b8461cb747b593a333f2aced8435.s1.eu.hivemq.cloud:8884/mqtt', {
+        clientId: 'mqttjs_' + Math.random().toString(16).substr(2, 8),
+        clean: true,
+        connectTimeout: 10 * 1000,
+        reconnectPeriod: 1000,
+        protocolVersion: 5,
+        username: 'ESP32',
+        password: 'Esp@12345',
+      });
+
+      // Connect to the MQTT broker
+      mqttClient.on('connect', function () {
+        console.log('Connected to HiveMQ broker');
+
+        // Publish the Python code to the topic "esp32/boot"
+        mqttClient.publish('esp32/boot', code, function (err) {
+          if (err) {
+            alert('MQTT send failed');
+            console.error('Error sending message:', err);
+          } else {
+            alert('Wi-Fi Boot via MQTT succeeded');
+            console.log('Message sent to ESP32');
+          }
+        });
+
+        // Subscribe to the relevant topic to receive the response
+        mqttClient.subscribe('esp32/message', function (err) {
+          if (err) {
+            console.error('Failed to subscribe to esp32/message topic:', err);
+          } else {
+            console.log('Successfully subscribed to esp32/message topic');
+          }
+        });
+      });
+
+      // Handle errors
+      mqttClient.on('error', function (err) {
+        console.error('MQTT connection error:', err);
+        alert('Error: Unable to connect to MQTT broker. Please check your network or broker status.');
+      });
+
+      // Handle reconnections and resubscribe to the topic after reconnect
+      mqttClient.on('reconnect', function () {
+        console.log('Reconnecting to HiveMQ broker...');
+        mqttClient.subscribe('esp32/message', function (err) {
+          if (err) {
+            console.error('Failed to subscribe after reconnect:', err);
+          } else {
+            console.log('Successfully re-subscribed to esp32/message topic');
+          }
+        });
+      });
+
+      // Handle connection closure
+      mqttClient.on('close', function () {
+        console.log('Connection to HiveMQ broker closed');
+      });
+
+      // Receive messages from the topic you subscribe to
+      mqttClient.on('message', function (topic, message) {
+        console.log('Received message:', message.toString(), 'from topic:', topic);
+
+        // Example: Handling the response from the ESP32
+        if (topic === 'esp32/message') {
+          const temperature = message.toString();
+          console.log('Temperature:', temperature);  // Process the temperature value as needed
+          const response = message.toString();
+          console.log('Backend Response:', response);
+
+          // You can update the frontend UI here based on the response
+          // alert('Received response from ESP32: ' + temperature);
+          document.getElementById('responseDisplay').innerText = response;
+          // End the connection after receiving the response (optional)
+          // mqttClient.end();
+        }
+      });
+
+      // Handle connection closure (optional: clean-up after receiving data)
+      mqttClient.on('close', function () {
+        console.log('MQTT connection closed');
+      });
+    }
+
+
+
+
+
+
+
+    /* --- app start --- */
+    async function start() {
+
+
+
+
+      // Connect Board button (desktop Web Serial)
+      document.getElementById("btnConnect").onclick = () => {
+        connectStm32();
+      };
+
+
+
+
+
+      const ok = await waitForBlockly();
+      if (!ok) { console.error('Blockly/Python failed to load'); return; }
+
+      // Theme from Code A (glass style)
+      const Theme = Blockly.Theme.defineTheme('rndmfg_glass', {
+        base: Blockly.Themes.Classic,
+
+        blockStyles: {
+          start_block: {
+            colourPrimary: '#a30000',
+            colourSecondary: '#0ea5e9',
+            colourTertiary: '#bae6fd'
+          },
+          control_blocks: {
+            colourPrimary: '#000080',
+            colourSecondary: '#f97316',
+            colourTertiary: '#fed7aa'
+          },
+          led_blocks: {
+            colourPrimary: '#880808',
+            colourSecondary: '#22c55e',
+            colourTertiary: '#bbf7d0'
+          },
+          move_blocks: {
+            colourPrimary: '#880808',
+            colourSecondary: '#7c3aed',
+            colourTertiary: '#e9d5ff'
+          }
+        },
+
+        categoryStyles: {
+          digitalin_cat: { colour: '#fb923c' },
+          digitalout_cat: { colour: '#38bdf8' },
+          loop_cat: { colour: '#a855f7' },
+          delay_cat: { colour: '#4ade80' },
+          logic_cat: { colour: '#facc15' },
+          math_cat: { colour: '#22c55e' }
+        },
+
+        componentStyles: {
+          workspaceBackgroundColour: '#ffffff',
+          toolboxBackgroundColour: 'rgba(15,23,42,0.7)',
+          toolboxForegroundColour: '#e5e7eb',
+          flyoutBackgroundColour: 'rgba(15,23,42,0.95)',
+          flyoutForegroundColour: '#e5e7eb',
+          flyoutOpacity: 1,
+          insertionMarkerColour: '#38bdf8',
+          insertionMarkerOpacity: 0.0,
+          scrollbarColour: '#94a3b8',
+          selectedGlowColour: 'transparent',
+          selectedGlowOpacity: 0,
+          selectedGlowSize: 1,
+          cursorColour: '#facc15'
+        }
+      });
+
+      defineBlocks();
+      defineGenerators();
+      workspace = Blockly.inject('blocklyDiv', {
+        toolbox: document.getElementById('toolbox'),
+        theme: Theme,
+        renderer: 'zelos',
+        grid: { spacing: 30, length: 1, colour: '#b7b7b7', snap: true },
+        trashcan: true,
+        zoom: { controls: true, wheel: true, startScale: 0.9, maxScale: 2.0, minScale: 0.4 },
+        move: { scrollbars: true, drag: true, wheel: true },
+        sound: true
+      });
+
+
+
+
+      // wifi logic
+      document.getElementById("btnWifi").onclick = async () => {
+        if (!workspace) {
+          alert("Blockly not ready yet");
+          return;
+        }
+
+        const code = Blockly.Python.workspaceToCode(workspace);
+
+        if (!code.trim()) {
+          alert("No code to send");
+          return;
+        }
+
+        // Send code via MQTT
+        await sendCodeToESP32_MQTT(code);
+      };
+
+
+      // Apply design enhancements (gradients + selection fix)
+      addGradientDefs();
+      applyGradientClasses(workspace);
+      killBlueSelection();
+
+      // Custom sound logic from Code A
+      const audio = workspace.getAudioManager();
+      audio.SOUNDS_ = {};
+
+      audio.load(["./assets/blockly/sounds/block_merge.mpeg"], "click");
+      audio.load(["./assets/blockly/sounds/cancel.mp3"], "delete");
+      audio.load(["./assets/blockly/sounds/block_merge.mpeg"], "dragstart");
+      audio.load(["./assets/blockly/sounds/block_merge.mpeg"], "dragend");
+      audio.load(["./assets/blockly/sounds/error.mp3"], "error");
+      audio.load(["./assets/blockly/sounds/disconnect.mp3"], "disconnect");
+
+      // DRAG START
+      // workspace.addChangeListener((ev) => {
+      //   if (ev.type === Blockly.Events.BLOCK_DRAG && ev.isStart) {
+      //     audio.play("dragstart");
+      //   }
+      // });
+
+      // DRAG END
+      // workspace.addChangeListener((ev) => {
+      //   if (ev.type === Blockly.Events.BLOCK_DRAG && ev.isEnd) {
+      //     audio.play("dragend");
+      //   }
+      // });
+
+      // BLOCK SNAP / MOVE
+      workspace.addChangeListener((ev) => {
+        if (ev.type === Blockly.Events.BLOCK_MOVE && ev.isStart) {
+          audio.play("click");
+        }
+      });
+
+      // BLOCK DELETE
+      workspace.addChangeListener((ev) => {
+        if (ev.type === Blockly.Events.BLOCK_DELETE) {
+          audio.play("delete");
+        }
+      });
+
+      // INVALID CONNECTION (error sound)
+      Blockly.Connection.prototype.highlightForError = function () {
+        audio.play("error");
+      };
+
+      // Python output
+      const pyOut = document.getElementById('pyOut');
+
+      // runs whenever blocks change – just for on-screen preview
+      function updateCode() {
+        const code = Blockly.Python.workspaceToCode(workspace);
+        pyOut.textContent = code || '# (no blocks yet)';
+
+        // Optional live preview message (not used for upload)
+        try {
+          window.ReactNativeWebView?.postMessage(
+            JSON.stringify({ type: 'py_preview', code })
+          );
+        } catch (e) { }
+      }
+
+      workspace.addChangeListener(updateCode);
+      updateCode();
+
+      // ========== RUN / UPLOAD BUTTON ==========
+      document.getElementById('btnRun').onclick = async () => {
+        const code = Blockly.Python.workspaceToCode(workspace);
+
+        // 1) Desktop: if Web Serial is available and port is open → send ONLY "start()"
+        if (window.navigator && "serial" in window.navigator && stm32Port && stm32Writer) {
+          await sendCommandToStm32(code);
+          return;
+        }
+
+        // 2) Mobile app (React Native WebView) → send full python as before
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          const payload = {
+            type: "python_upload",
+            code: code,
+            entry_function: "main",
+          };
+          window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+          alert("Code sent to mobile app (no USB yet).");
+          return;
+        }
+
+        // 3) Fallback: normal browser (no Web Serial, no RN) → copy to clipboard
+        alert("Python copied to clipboard (no STM32 connection).");
+        navigator.clipboard?.writeText(code);
+      };
+
+
+      document.getElementById('btnSave').onclick = () => {
+        const xml = Blockly.Xml.domToPrettyText(Blockly.Xml.workspaceToDom(workspace));
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([xml], { type: 'text/xml' }));
+        a.download = 'program.xml';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+
+      document.getElementById('btnLoad').onclick = async () => {
+        const [f] = await (window.showOpenFilePicker
+          ? await showOpenFilePicker({
+            types: [{ description: 'XML', accept: { 'text/xml': ['.xml'] } }]
+          }).catch(() => [])
+          : []);
+        let text = '';
+        if (f) {
+          text = await (await f.getFile()).text();
+        } else {
+          const inp = document.createElement('input');
+          inp.type = 'file';
+          inp.accept = '.xml,text/xml';
+          inp.onchange = async e => {
+            const file = e.target.files[0];
+            const t = await file.text();
+            loadXml(t);
+          };
+          inp.click();
+          return;
+        }
+        loadXml(text);
+      };
+
+      function loadXml(text) {
+        if (!text) return;
+        workspace.clear();
+        Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(text), workspace);
+      }
+
+      document.getElementById('btnClear').onclick = () => {
+        workspace.clear();
+        updateCode();
+      };
+
+
+      const demo = `
+<xml xmlns="https://developers.google.com/blockly/xml">
+  <block type="start" x="40" y="40">
+    <field name="NAME">when Start Button clicked</field>
+  </block>
+</xml>`;
+      Blockly.Xml.domToWorkspace(Blockly.utils.xml.textToDom(demo), workspace);
+    }
+
+    window.addEventListener('load', start);
+  </script>
+</body>
+
+</html>

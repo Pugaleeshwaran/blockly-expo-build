@@ -1,0 +1,39 @@
+String page = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Data</title>
+</head>
+<body>
+<h2>Send Data to ESP32</h2>
+
+<input type="text" id="data">
+<button onclick="sendData()">Send</button>
+
+<p><b>Received from ESP32:</b> <span id="resp">--</span></p>
+
+<script>
+function sendData() {
+  let val = document.getElementById("data").value;
+  fetch("/send?value=" + val)
+    .then(response => response.text())
+    .then(data => {
+      document.getElementById("resp").innerText = data;
+    });
+}
+
+setInterval(() => {
+  fetch("/get")
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById("resp").innerText = data;
+    });
+}, 2000);
+</script>
+</body>
+</html>
+)rawliteral";
+
+  server.send(200, "text/html", page);
+}
