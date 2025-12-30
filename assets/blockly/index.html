@@ -14,6 +14,7 @@
 
   <!-- Load Blockly once -->
   <script>
+
     (function loadBlockly() {
       function add(src, next) {
         var s = document.createElement('script');
@@ -30,6 +31,8 @@
     })();
   </script>
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://unpkg.com/blockly@10.4.3/msg/en.js"></script>
+
 
   <style>
     :root {
@@ -408,24 +411,6 @@
       font-size: 16px !important;
     }
 
-    /* ==== EXTRA DESIGN / THEME FROM CODE A ==== */
-
-    /* fallback base colours (unused once gradients apply) */
-    .block-while .blocklyPath {
-      fill: #facc15;
-    }
-
-    .block-ifelse .blocklyPath {
-      fill: #fb923c;
-    }
-
-    .block-doonoff .blocklyPath {
-      fill: #38bdf8;
-    }
-
-    .block-servo .blocklyPath {
-      fill: #a855f7;
-    }
 
     /* Blockly main SVG area */
     .blocklySvg {
@@ -497,29 +482,50 @@
     /* ===== LIGHT, ATTRACTIVE GRADIENTS ===== */
 
     /* default gradient for ALL blocks */
-    .block-grad-any .blocklyPath {
-      fill: url(#gradDefault) !important;
-      stroke: rgba(15, 23, 42, 0.25);
-      stroke-width: 1px;
-      stroke-linejoin: round;
-      paint-order: stroke;
-    }
 
     /* overrides for specific block types (different colors) */
-    .block-while .blocklyPath {
-      fill: url(#gradLoop) !important;
-    }
 
-    .block-ifelse .blocklyPath {
-      fill: url(#gradIfElse) !important;
-    }
-
-    .block-doonoff .blocklyPath {
-      fill: url(#gradDigital) !important;
-    }
-
-    .block-servo .blocklyPath {
+    .block-servo>.blocklyPath {
       fill: url(#gradServo) !important;
+      stroke-width: 1;
+      stroke: #F266C1;
+    }
+
+    .led_style>.blocklyPath {
+      fill: url(#gradled) !important;
+      stroke-width: 1;
+      stroke: #8C041D;
+    }
+
+    .dummy_block>.blocklyPath {
+      fill: url(#dummy_style);
+      stroke-width: 1px;
+      stroke: #79A637;
+    }
+
+    .block_dc>.blocklyPath {
+      fill: url(#graddc);
+      stroke-width: 1px;
+      stroke: #F2C744;
+    }
+
+    .temp_style>.blocklyPath {
+      fill: url(#temp_style);
+      stroke-width: 1px;
+      stroke: #73168C;
+
+    }
+
+    .ultra_style>.blocklyPath {
+      fill: url(#ultra_style);
+      stroke-width: 1px;
+      stroke: #593A28;
+    }
+
+    .defult_style>.blocklyPath {
+      fill: url(#gradDefault);
+      stroke: #2685BF;
+      stroke-width: 1px;
     }
   </style>
 </head>
@@ -568,6 +574,14 @@
         </header>
         <pre id="pyOut"># drag & drop blocks to generate Python…</pre>
         <div id="responseDisplay">Waiting for response...</div>
+        <div style="padding:10px;background:#eee;border-radius:8px;margin-top:10px">
+          🔥 Fire: <span id="fireStatus">--</span><br>
+          📏 Distance: <span id="distance">--</span><br>
+          🔄 Servo: <span id="servoAngle">--</span><br>
+          💡 LED: <span id="ledStatus">--</span><br>
+          ⚙️ Motor: <span id="motorStatus">--</span><br>
+          🌡️ Tem:<span id="temStatus">--</span>
+        </div>
 
       </div>
     </section>
@@ -599,6 +613,18 @@
       <block type="lp_repeat_count"></block>
       <block type="lp_label"></block>
     </category>
+    <category name="motor" colour="#C0603E">
+      <block type="mini_motor"></block>
+      <block type="remote_motor"></block>
+      <block type="water_motor"></block>
+      <block type="tank_motor"></block>
+    </category>
+    <category name="sensor" colour="#2EB061">
+      <block type="sensor"></block>
+      <block type="tem_sensor"></block>
+      <block type="xray_sensor"></block>
+      <block type="rc_sensor"></block>
+    </category>
     <category name="Digitalin" colour="#FFB56A">
       <block type="din_if_else"></block>
       <block type="din_ir"></block>
@@ -616,6 +642,8 @@
       <block type="math_number">
         <field name="NUM">1</field>
       </block>
+      <block type="text"></block>
+      <block type="text_join"></block>
     </category>
     <category name="Function" custom="PROCEDURE" colour="#FF1493"></category>
     <category name="Variable" custom="VARIABLE" colour="#0000FF"></category>
@@ -764,9 +792,9 @@
         {
           type: "start",
           message0: "Start",
-          style: "start_block",
           output: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["defult_style"]
         },
         {
           type: "port_on",
@@ -789,7 +817,7 @@
           colour: "#ffb56a",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["port_on_img_click"]
+          extensions: ["port_on_img_click", "led_style"]
         },
         {
           type: "port_off",
@@ -812,7 +840,7 @@
           colour: "#ffb56a",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["port_image_click"]
+          extensions: ["port_image_click", "led_style"]
         },
         {
           type: "sen_ultrasonic",
@@ -828,25 +856,33 @@
           ],
           style: "control_blocks",
           previousStatement: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["led_style"]
           // remove: output: "Number"
         }
         ,
         {
           type: "sen_temp",
-          message0: "temperature on port %1",
+          message0: "temperature on port %1 %2",
           args0: [
             {
-              type: "field_number",
-              name: "PORT",
-              value: 3,
-              min: 0,
-              max: 99
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
             }
           ],
           style: "control_blocks",
           previousStatement: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["led_style", 'led_pin_image_click']
         },
 
 
@@ -879,7 +915,7 @@
           colour: "#81d4ed",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["port_image_click", "doonoff_border_class"]
+          extensions: ["port_image_click", "servo_color"]
         },
         {
           type: "do_dc_motor",
@@ -914,7 +950,7 @@
           colour: "#81d4ed",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["motor_image_click"]
+          extensions: ["motor_image_click", "servo_color"]
         },
         {
           type: "do_servo",
@@ -945,7 +981,7 @@
           colour: "#81d4ed",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["servo_image_click", "servo_border_class"]
+          extensions: ["servo_image_click", "servo_color"]
         },
         {
           type: "bt_send",
@@ -958,7 +994,8 @@
           ],
           previousStatement: null,
           nextStatement: null,
-          style: "control_blocks"
+          style: "control_blocks",
+          extensions: ["servo_color"]
         },
 
         {
@@ -990,7 +1027,7 @@
           colour: "#81d4ed",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["port_image_click", "doonoff_border_class"]
+          extensions: ["port_image_click", "servo_color"]
         },
         {
           type: "ctl_delay",
@@ -1004,7 +1041,8 @@
           }],
           style: "led_blocks",
           previousStatement: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["dummy_style"]
         },
         {
           type: "lp_while",
@@ -1012,33 +1050,39 @@
           args0: [{ type: "input_value", name: "COND", check: "Boolean" }],
           message1: "do %1",
           args1: [{ type: "input_statement", name: "DO" }],
-          style: "start_block",
+
           previousStatement: null,
           nextStatement: null,
-          extensions: ["while_border_class"]
+          extensions: ["dc_color"]
         },
         {
           type: "lp_break",
           message0: "break",
-          style: "start_block",
+
           previousStatement: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["dc_color"]
+
         },
         {
           type: "lp_repeat_count",
-          message0: "repeat %1 times",
-          args0: [{
-            type: "field_number",
-            name: "COUNT", value: 4, min: 0, max: 100000
-          }],
+          message0: "repeat %1 %2 times",
+          args0: [
+            {
+              type: 'field_number',
+              name: "PIN"
+            }, {
+              type: "field_number",
+              name: "COUNT", value: 4, min: 0, max: 100000
+            }],
           message1: "do %1",
           args1: [{
             type: "input_statement",
             name: "DO"
           }],
-          style: "start_block",
           previousStatement: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["dc_color"]
         },
         {
           type: "lp_label",
@@ -1048,9 +1092,9 @@
             name: "NAME",
             text: "lbl1"
           }],
-          style: 'start_block',
           previousStatement: null,
-          nextStatement: null
+          nextStatement: null,
+          extensions: ["dc_color"]
         },
         {
           type: "din_if_else",
@@ -1063,7 +1107,7 @@
           style: "control_blocks",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["ifelse_border_class"]
+          extensions: ["temp_style"]
         },
         {
           type: "din_ir",
@@ -1073,7 +1117,8 @@
             name: "PIN", value: 4, min: 0, max: 99
           }],
           style: "control_blocks",
-          output: "Boolean"
+          output: "Boolean",
+          extensions: ["temp_style"]
         },
         {
           type: "din_sound",
@@ -1085,7 +1130,8 @@
             max: 99
           }],
           style: "control_blocks",
-          output: "Boolean"
+          output: "Boolean",
+          extensions: ["temp_style"]
         },
         {
           type: "din_metal",
@@ -1098,7 +1144,8 @@
             max: 99
           }],
           style: "control_blocks",
-          output: "Boolean"
+          output: "Boolean",
+          extensions: ["temp_style"]
         },
         {
           type: "din_read",
@@ -1111,7 +1158,8 @@
             max: 99
           }],
           style: "control_blocks",
-          output: "Boolean"
+          output: "Boolean",
+          extensions: ["temp_style"]
         },
         {
           type: "do_led_param",
@@ -1142,8 +1190,303 @@
           colour: "#81d4ed",
           previousStatement: null,
           nextStatement: null,
-          extensions: ["led_pin_image_click", "doonoff_border_class"]
-        }
+          extensions: ["led_pin_image_click", "dummy_style"]
+        },
+        {
+          type: "mini_motor",
+          message0: "Mini Motor %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "MOTORS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "SPEED",
+              value: 60,
+              min: -100,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_label",
+              text: "%"
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["motor_image_click", "temp_style"]
+        },
+        {
+          type: "remote_motor",
+          message0: "remote Motor %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "MOTORS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "SPEED",
+              value: 10,
+              min: -100,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_label",
+              text: "%"
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["motor_image_click", "temp_style"]
+        },
+        {
+          type: "water_motor",
+          message0: "water Motor %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "MOTORS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "SPEED",
+              value: 40,
+              min: -100,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_label",
+              text: "%"
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["motor_image_click", "temp_style"]
+        },
+        {
+          type: "tank_motor",
+          message0: "tank Motor %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "MOTORS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "SPEED",
+              value: 40,
+              min: -100,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_label",
+              text: "%"
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["motor_image_click", "temp_style"]
+        },
+        {
+          type: "sensor",
+          message0: "ultra sonic %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "ultra_style"]
+        },
+        {
+          type: "tem_sensor",
+          message0: "tem sonic %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "ultra_style"]
+        },
+        {
+          type: "xray_sensor",
+          message0: "xray sonic %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "ultra_style"]
+        },
+        {
+          type: "rc_sensor",
+          message0: "rc sensor %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "ultra_style"]
+        },
+        {
+          type: "sensor",
+          message0: "rc sensor %1 %2 %3",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["ON", "1"],
+                ["OFF", "0"]
+              ]
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["port_image_click", "ultra_style"]
+        },
 
 
 
@@ -1181,34 +1524,17 @@
       });
 
       /* ===== BORDER / TYPE CLASS EXTENSIONS (for gradients) ===== */
-      Blockly.Extensions.register('while_border_class', function () {
+
+      Blockly.Extensions.register('defult_style', function () {
         const block = this;
         block.setOnChange(function () {
           if (block.svgGroup_) {
-            block.svgGroup_.classList.add('block-while');
+            block.svgGroup_.classList.add('defult_style');
           }
         });
       });
 
-      Blockly.Extensions.register('ifelse_border_class', function () {
-        const block = this;
-        block.setOnChange(function () {
-          if (block.svgGroup_) {
-            block.svgGroup_.classList.add('block-ifelse');
-          }
-        });
-      });
-
-      Blockly.Extensions.register('doonoff_border_class', function () {
-        const block = this;
-        block.setOnChange(function () {
-          if (block.svgGroup_) {
-            block.svgGroup_.classList.add('block-doonoff');
-          }
-        });
-      });
-
-      Blockly.Extensions.register('servo_border_class', function () {
+      Blockly.Extensions.register('servo_color', function () {
         const block = this;
         block.setOnChange(function () {
           if (block.svgGroup_) {
@@ -1223,7 +1549,46 @@
           openLedPinSelectionModal(this);
         });
       });
-
+      Blockly.Extensions.register('led_style', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('led_style');
+          }
+        })
+      })
+      Blockly.Extensions.register('dummy_style', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('dummy_block');
+          }
+        })
+      })
+      Blockly.Extensions.register('temp_style', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('temp_style')
+          }
+        })
+      })
+      Blockly.Extensions.register('dc_color', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (__blocklyLoaded) {
+            block.svgGroup_.classList.add('block_dc')
+          }
+        })
+      })
+      Blockly.Extensions.register('ultra_style', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('ultra_style')
+          }
+        })
+      })
 
 
     }
@@ -1260,9 +1625,22 @@
       };
 
       Blockly.Python['sen_temp'] = function (block) {
-        const port = block.getFieldValue('PORT') || 0;
+        const pinsTxt = block.getFieldValue('PORTS') || "";
+
+        const pins = pinsTxt.split(',').map(s => s.trim()).filter(Boolean);
+
+        if (!pins.length) {
+          return "# tem_port: no pins selected\n";
+        }
+
+        let code = '';
+        pins.forEach(pin => {
+          // using 'D3' style names:
+          code += `temp_port(${pin})\n`;
+        });
+
         // example: store temperature into a global variable "temperature"
-        return `temperature = robot.temperature_c(${port})\n`;
+        return code;
       };
 
 
@@ -1345,9 +1723,10 @@
       py['lp_break'] = () => 'break\n';
 
       py['lp_repeat_count'] = b => {
+        const n1 = +b.getFieldValue("PIN") || 0;
         const n = +b.getFieldValue('COUNT') || 0;
         const body = py.statementToCode(b, 'DO') || '  pass\n';
-        return `for _ in range(${n}):\n${body}`;
+        return `for ${n1} range(${n}):\n${body}`;
       };
 
       py['lp_label'] = b => `# label: ${b.getFieldValue('NAME') || 'lbl1'}\n`;
@@ -1367,10 +1746,7 @@
         const valueCode2 =
           Blockly.Python.valueToCode(block, 'VAL2', Blockly.Python.ORDER_NONE) || '0';
 
-        const pins = pinsTxt
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean);
+        const pins = pinsTxt.split(',').map(s => s.trim()).filter(Boolean);
 
         if (!pins.length) {
           return "# do_led_param: no pins selected\n";
@@ -1393,6 +1769,135 @@
       py['din_sound'] = b => [`robot.sound_detected(${b.getFieldValue('PIN')})`, py.ORDER_ATOMIC];
       py['din_metal'] = b => [`robot.metal_detected(${b.getFieldValue('PIN')})`, py.ORDER_ATOMIC];
       py['din_read'] = b => [`bool(robot.digital_read(${b.getFieldValue('PIN')}))`, py.ORDER_ATOMIC];
+
+
+      Blockly.Python['mini_motor'] = function (block) {
+        const speed = block.getFieldValue('SPEED') || 0;
+        const motors = (block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+        if (motors.length === 0) {
+          return "# No motors selected\n";
+        }
+
+        let code = "";
+        motors.forEach(motor => {
+          code += `mini_motor("${motor}", ${speed})\n`;
+        });
+
+        return code;
+      };
+      Blockly.Python['remote_motor'] = function (block) {
+        const speed = block.getFieldValue('SPEED') || 0;
+        const motors = (block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+        if (motors.length === 0) {
+          return "# No motors selected\n";
+        }
+
+        let code = "";
+        motors.forEach(motor => {
+          code += `remote_motor("${motor}", ${speed})\n`;
+        });
+
+        return code;
+      };
+      Blockly.Python['water_motor'] = function (block) {
+        const speed = block.getFieldValue('SPEED') || 0;
+        const motors = (block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+        if (motors.length === 0) {
+          return "# No motors selected\n";
+        }
+
+        let code = "";
+        motors.forEach(motor => {
+          code += `water_motor("${motor}", ${speed})\n`;
+        });
+
+        return code;
+      };
+      Blockly.Python['tank_motor'] = function (block) {
+        const speed = block.getFieldValue('SPEED') || 0;
+        const motors = (block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+        if (motors.length === 0) {
+          return "# No motors selected\n";
+        }
+
+        let code = "";
+        motors.forEach(motor => {
+          code += `tank_motor("${motor}", ${speed})\n`;
+        });
+
+        return code;
+      };
+
+      Blockly.Python['sensor'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+        const stateVal = block.getFieldValue('STATE') || '0';
+
+        const ports = portsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!ports.length) {
+          return "# do_onoff: no ports selected\n";
+        }
+
+        const fn = (stateVal === '1') ? 'sensor_on' : 'sensor_off';
+        return ports.map(p => `${fn}(${p})\n`).join('');
+      };
+
+      Blockly.Python['tem_sensor'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+        const stateVal = block.getFieldValue('STATE') || '0';
+
+        const ports = portsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!ports.length) {
+          return "# do_onoff: no ports selected\n";
+        }
+
+        const fn = (stateVal === '1') ? 'tem_sensor_on' : 'tem_sensor_off';
+        return ports.map(p => `${fn}(${p})\n`).join('');
+      };
+
+      Blockly.Python['xray_sensor'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+        const stateVal = block.getFieldValue('STATE') || '0';
+
+        const ports = portsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!ports.length) {
+          return "# do_onoff: no ports selected\n";
+        }
+
+        const fn = (stateVal === '1') ? 'xray_sensor_on' : 'xray_sensor_off';
+        return ports.map(p => `${fn}(${p})\n`).join('');
+      };
+      Blockly.Python['rc_sensor'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+        const stateVal = block.getFieldValue('STATE') || '0';
+
+        const ports = portsTxt
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!ports.length) {
+          return "# do_onoff: no ports selected\n";
+        }
+
+        const fn = (stateVal === '1') ? 'rc_sensor_on' : 'rc_sensor_off';
+        return ports.map(p => `${fn}(${p})\n`).join('');
+      };
     }
 
     /* --- modal wiring --- */
@@ -1547,8 +2052,6 @@
       closeLedPinModal();
     }
 
-
-
     // ---- Add multiple gradient defs into Blockly SVG (from Code A) ----
     function addGradientDefs() {
       const svg = document.querySelector('svg.blocklySvg');
@@ -1563,8 +2066,6 @@
         defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
         svg.prepend(defs);
       }
-
-      if (svg.querySelector('#gradDefault')) return; // already added
 
       function makeLinearGradient(id, stops) {
         const grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
@@ -1585,47 +2086,206 @@
       }
 
       makeLinearGradient('gradDefault', [
-        { offset: '0%', color: '#a5f3fc', opacity: 1 },
-        { offset: '100%', color: '#60a5fa', opacity: 1 }
+        { offset: '0%', color: '#BBE8F2', opacity: 1 },
+        { offset: '50%', color: '#2685BF', opacity: 1 },
+        { offset: '100%', color: '#BBE8F2', opacity: 1 }
+      ]);
+      makeLinearGradient('gradled', [
+        { offset: '0%', color: '#BF0413', opacity: 1 },
+        { offset: '50%', color: '#BF0B2C', opacity: 1 },
+        { offset: '100%', color: '#8C041D', opacity: 1 }
+      ]);
+      makeLinearGradient('dummy_style', [
+        { offset: '0%', color: '#B2F252', opacity: 1 },
+        { offset: '50%', color: '#79A637', opacity: 1 },
+        { offset: '100%', color: '#EFF299', opacity: 1 }
       ]);
 
-      makeLinearGradient('gradLoop', [
-        { offset: '0%', color: '#facc15', opacity: 1 },
-        { offset: '100%', color: '#fb923c', opacity: 1 }
+      makeLinearGradient('graddc', [
+        { offset: '0%', color: '#F2A922' }, // #BBE8F2 with full opacity
+        { offset: '50%', color: '#D97A07' }, // #2685BF with full opacity
+        { offset: '100%', color: '#F2921D' } // #BBE8F2 with full opacity
       ]);
-
-      makeLinearGradient('gradIfElse', [
-        { offset: '0%', color: '#fb923c', opacity: 1 },
-        { offset: '100%', color: '#f97316', opacity: 1 }
-      ]);
-
-      makeLinearGradient('gradDigital', [
-        { offset: '0%', color: '#38bdf8', opacity: 1 },
-        { offset: '100%', color: '#22c55e', opacity: 1 }
+      makeLinearGradient('temp_style', [
+        { offset: '0%', color: '#9F2CBF', opacity: 1 },
+        { offset: '50%', color: '#73168C', opacity: 1 },
+        { offset: '100%', color: '#9F2CBF', opacity: 1 }
       ]);
 
       makeLinearGradient('gradServo', [
-        { offset: '0%', color: '#a855f7', opacity: 1 },
-        { offset: '100%', color: '#ec4899', opacity: 1 }
+        { offset: '0%', color: '#F2ACC6', opacity: 1 },
+        { offset: '50%', color: '#F266C1', opacity: 1 },
+        { offset: '100%', color: '#F2ACC6', opacity: 1 }
       ]);
-      makeLinearGradient('gradadd', [
-        { offset: '0%', color: '#ff33cc', opacity: 1 },
-        { offset: '100%', color: '#ff33cc', opacity: 1 }
+      makeLinearGradient('ultra_style', [
+        { offset: '0%', color: '#8C5946', opacity: 1 },
+        { offset: '50%', color: '#593A28', opacity: 1 },
+        { offset: '100%', color: '#D9B29C', opacity: 1 }
       ]);
+      // Add filter for drop shadow effect
+      function createDropShadowFilter(id, dx, dy, stdDeviation, color) {
+        const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+        filter.setAttribute('id', id);
+        filter.setAttribute('x', '-50%');
+        filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%');
+        filter.setAttribute('height', '200%');
+
+        const feDropShadow = document.createElementNS("http://www.w3.org/2000/svg", "feDropShadow");
+        feDropShadow.setAttribute('dx', dx);
+        feDropShadow.setAttribute('dy', dy);
+        feDropShadow.setAttribute('stdDeviation', stdDeviation);
+        feDropShadow.setAttribute('flood-color', color);
+        filter.appendChild(feDropShadow);
+
+        defs.appendChild(filter);
+      }
+
+      // Create a Stroke Filter
+      function createStrokeFilter(id, color, width) {
+        const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+        filter.setAttribute('id', id);
+        filter.setAttribute('x', '-50%');
+        filter.setAttribute('y', '-50%');
+        filter.setAttribute('width', '200%');
+        filter.setAttribute('height', '200%');
+
+        const feStroke = document.createElementNS("http://www.w3.org/2000/svg", "feStroke");
+        feStroke.setAttribute('color', color);
+        feStroke.setAttribute('width', width);
+
+        filter.appendChild(feStroke);
+
+
+
+        defs.appendChild(filter);
+      }
+
+      // ------------add dropshadow here-------------
+      // Create Drop Shadow Filters
+      createDropShadowFilter('blueShadow', 2, 2, 5, '#2685BF');  // Drop shadow for 'start' block
+      createDropShadowFilter('dcshodow', 2, 2, 5, '#D97A07');
+      createDropShadowFilter('ledshodow', 2, 5, 5, '#D99CA7');
+      createDropShadowFilter('servoshodow', 2, 2, 5, '#F279BC');
+      createDropShadowFilter('dummyshadow', 2, 3, 5, '#79A637');// Drop shadow for 'dc_motor' block
+      createDropShadowFilter('tempshadow', 2, 3, 5, '#593A28');
+      createDropShadowFilter('ultrashowdow', 2, 2, 5, '#8B22A8');
+
     }
 
-    // add .block-grad-any class to every block so default gradient applies
-    function applyGradientClasses(workspace) {
-      function markAll() {
-        const blocks = workspace.getAllBlocks(false);
-        blocks.forEach(b => {
-          if (b.svgGroup_) {
-            b.svgGroup_.classList.add('block-grad-any');
-          }
-        });
+    function applyGradientAndShadowToBlock(block) {
+      const blockPath = block.svgGroup_?.querySelector('.blocklyPath');
+
+      if (!blockPath) return;
+
+      // Apply gradient (example)
+      blockPath.setAttribute('fill', 'url(#gradDefault)');
+
+      // -------------declare shadow here ------------            
+      // Apply combined shadow and stroke filter based on block type
+      if (block.type === 'start') {
+        blockPath.setAttribute('filter', 'url(#blueShadow)');  // Apply drop shadow
       }
-      markAll();
-      workspace.addChangeListener(markAll);
+      else if (block.type === 'port_on') {
+        blockPath.setAttribute('filter', 'url(#ledshodow)');  // Apply drop shadow
+      }
+      else if (block.type === 'port_off') {
+        blockPath.setAttribute('filter', 'url(#ledshodow)');  // Apply drop shadow
+      }
+      else if (block.type === 'sen_ultrasonic') {
+        blockPath.setAttribute('filter', 'url(#ledshodow)');  // Apply drop shadow
+      }
+      else if (block.type === 'sen_temp') {
+        blockPath.setAttribute('filter', 'url(#ledshodow)');  // Apply drop shadow
+      }
+      else if (block.type === 'do_onoff') {
+        blockPath.setAttribute('filter', 'url(#servoshodow)')
+      }
+      else if (block.type === 'do_dc_motor') {
+        blockPath.setAttribute('filter', 'url(#servoshodow)')
+      }
+      else if (block.type === 'do_servo') {
+        blockPath.setAttribute('filter', 'url(#servoshodow)')
+      }
+      else if (block.type === 'bt_send') {
+        blockPath.setAttribute('filter', 'url(#servoshodow)')
+      }
+      else if (block.type === 'do_led') {
+        blockPath.setAttribute('filter', 'url(#servoshodow)')
+      }
+      else if (block.type == 'ctl_delay') {
+        blockPath.setAttribute('filter', 'url(#dummyshadow)')
+      }
+      else if (block.type == 'do_led_param') {
+        blockPath.setAttribute('filter', 'url(#dummyshadow)')
+      }
+      else if (block.type == 'lp_while') {
+        blockPath.setAttribute('filter', 'url(#dcshodow)')
+      }
+      else if (block.type == 'lp_break') {
+        blockPath.setAttribute('filter', 'url(#dcshodow)')
+      }
+      else if (block.type == 'lp_repeat_count') {
+        blockPath.setAttribute('filter', 'url(#dcshodow)')
+      }
+      else if (block.type == 'lp_label') {
+        blockPath.setAttribute('filter', 'url(#dcshodow)')
+      }
+
+
+      else if (block.type == 'sensor') {
+        blockPath.setAttribute('filter', 'url(#tempshadow)')
+      }
+      else if (block.type == 'tem_sensor') {
+        blockPath.setAttribute('filter', 'url(#tempshadow)')
+      }
+      else if (block.type == 'xray_sensor') {
+        blockPath.setAttribute('filter', 'url(#tempshadow)')
+      }
+      else if (block.type == '"rc_sensor') {
+        blockPath.setAttribute('filter', 'url(#tempshadow)')
+      }
+      else if (block.type === 'mini_motor') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'remote_motor') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'water_motor') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'din_if_else') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'din_ir') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'din_sound') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'tdin_metal') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+      else if (block.type === 'tank_motor') {
+        blockPath.setAttribute('filter', 'url(#ultrashowdow)')
+      }
+
+    }
+
+    function setupGradientAndShadowOnBlocks() {
+      Blockly.getMainWorkspace().addChangeListener((e) => {
+        if (e.type === Blockly.Events.BLOCK_CREATE || e.type === Blockly.Events.BLOCK_CHANGE) {
+          applyToAllBlocks();
+        }
+      });
+    }
+
+    // Apply gradient and shadow to all blocks in the workspace
+    function applyToAllBlocks() {
+      const blocks = Blockly.getMainWorkspace().getAllBlocks();
+      blocks.forEach(block => {
+        applyGradientAndShadowToBlock(block);  // Call the function to apply gradient, shadow, and stroke
+      });
     }
 
     // Remove blue selection glow (from Code A)
@@ -1738,7 +2398,15 @@
         console.error("Error closing port:", e);
       }
     }
+    function handleBoardMessage(line) {
+      console.log("Board:", line);
 
+      // Optional: show in UI
+      const el = document.getElementById("responseDisplay");
+      if (el) {
+        el.innerText = line;
+      }
+    }
 
     async function listenForData() {
       if (!stm32Port) return;
@@ -1786,27 +2454,26 @@
         password: 'Esp@12345',
       });
 
+      const topics = [
+        'esp32/fire',
+        'esp32/ultrasonic',
+        'esp32/servo',
+        'esp32/led',
+        'esp32/motor',
+        'esp32/message',  // This topic will update the Maths category
+      ];
+
       // Connect to the MQTT broker
       mqttClient.on('connect', function () {
         console.log('Connected to HiveMQ broker');
+        mqttClient.publish('esp32/boot', code);
 
-        // Publish the Python code to the topic "esp32/boot"
-        mqttClient.publish('esp32/boot', code, function (err) {
+        // Subscribe to the topics
+        mqttClient.subscribe(topics, (err) => {
           if (err) {
-            alert('MQTT send failed');
-            console.error('Error sending message:', err);
+            console.error('Topic subscribe failed:', err);
           } else {
-            alert('Wi-Fi Boot via MQTT succeeded');
-            console.log('Message sent to ESP32');
-          }
-        });
-
-        // Subscribe to the relevant topic to receive the response
-        mqttClient.subscribe('esp32/message', function (err) {
-          if (err) {
-            console.error('Failed to subscribe to esp32/message topic:', err);
-          } else {
-            console.log('Successfully subscribed to esp32/message topic');
+            console.log('Subscribed to topics:', topics);
           }
         });
       });
@@ -1836,20 +2503,37 @@
 
       // Receive messages from the topic you subscribe to
       mqttClient.on('message', function (topic, message) {
-        console.log('Received message:', message.toString(), 'from topic:', topic);
+        const data = message.toString();
+        console.log(`📩 ${topic}:`, data);
 
-        // Example: Handling the response from the ESP32
-        if (topic === 'esp32/message') {
-          const temperature = message.toString();
-          console.log('Temperature:', temperature);  // Process the temperature value as needed
-          const response = message.toString();
-          console.log('Backend Response:', response);
+        switch (topic) {
+          case 'esp32/fire':
+            document.getElementById('fireStatus').innerText = data;
+            break;
 
-          // You can update the frontend UI here based on the response
-          // alert('Received response from ESP32: ' + temperature);
-          document.getElementById('responseDisplay').innerText = response;
-          // End the connection after receiving the response (optional)
-          // mqttClient.end();
+          case 'esp32/ultrasonic':
+            document.getElementById('distance').innerText = data + ' cm';
+            break;
+
+          case 'esp32/servo':
+            document.getElementById('servoAngle').innerText = data + '°';
+            break;
+
+          case 'esp32/led':
+            document.getElementById('ledStatus').innerText = data;
+            break;
+
+          case 'esp32/motor':
+            document.getElementById('motorStatus').innerText = data;
+            break;
+
+          case 'esp32/message':
+            // Update the Maths category (Temperature or any other string data)
+            document.getElementById('temStatus').innerText = data + "°C";
+            break;
+
+          default:
+            console.warn('Unknown topic:', topic);
         }
       });
 
@@ -1858,7 +2542,6 @@
         console.log('MQTT connection closed');
       });
     }
-
 
 
 
@@ -1886,39 +2569,6 @@
       // Theme from Code A (glass style)
       const Theme = Blockly.Theme.defineTheme('rndmfg_glass', {
         base: Blockly.Themes.Classic,
-
-        blockStyles: {
-          start_block: {
-            colourPrimary: '#a30000',
-            colourSecondary: '#0ea5e9',
-            colourTertiary: '#bae6fd'
-          },
-          control_blocks: {
-            colourPrimary: '#000080',
-            colourSecondary: '#f97316',
-            colourTertiary: '#fed7aa'
-          },
-          led_blocks: {
-            colourPrimary: '#880808',
-            colourSecondary: '#22c55e',
-            colourTertiary: '#bbf7d0'
-          },
-          move_blocks: {
-            colourPrimary: '#880808',
-            colourSecondary: '#7c3aed',
-            colourTertiary: '#e9d5ff'
-          }
-        },
-
-        categoryStyles: {
-          digitalin_cat: { colour: '#fb923c' },
-          digitalout_cat: { colour: '#38bdf8' },
-          loop_cat: { colour: '#a855f7' },
-          delay_cat: { colour: '#4ade80' },
-          logic_cat: { colour: '#facc15' },
-          math_cat: { colour: '#22c55e' }
-        },
-
         componentStyles: {
           workspaceBackgroundColour: '#ffffff',
           toolboxBackgroundColour: 'rgba(15,23,42,0.7)',
@@ -1938,6 +2588,7 @@
 
       defineBlocks();
       defineGenerators();
+
       workspace = Blockly.inject('blocklyDiv', {
         toolbox: document.getElementById('toolbox'),
         theme: Theme,
@@ -1973,9 +2624,8 @@
 
       // Apply design enhancements (gradients + selection fix)
       addGradientDefs();
-      applyGradientClasses(workspace);
       killBlueSelection();
-
+      setupGradientAndShadowOnBlocks();
       // Custom sound logic from Code A
       const audio = workspace.getAudioManager();
       audio.SOUNDS_ = {};
