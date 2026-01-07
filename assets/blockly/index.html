@@ -417,9 +417,9 @@
       background: #e8f4f7 !important;
     }
 
-    .blocklyMainBackground {
+    /* .blocklyMainBackground {
       fill: #ffffff !important;
-    }
+    } */
 
     .blocklyToolboxDiv {
       background: rgba(15, 23, 42, 0.9) !important;
@@ -527,6 +527,20 @@
       stroke: #2685BF;
       stroke-width: 1px;
     }
+
+    .popup-icon {
+      position: fixed;
+      /* Keeps it fixed in the screen */
+      z-index: 9999;
+      /* Ensures it's on top */
+      top: 20px;
+      /* Adjust as needed */
+      right: 20px;
+      /* Adjust as needed */
+      cursor: pointer;
+      pointer-events: all;
+      /* Ensure the icon is clickable at all times */
+    }
   </style>
 </head>
 
@@ -610,6 +624,7 @@
     <category name="Loop" colour="#FF6347">
       <block type="lp_while"></block>
       <block type="lp_break"></block>
+      <block type="lp_start"></block>
       <block type="lp_repeat_count"></block>
       <block type="lp_label"></block>
     </category>
@@ -618,6 +633,11 @@
       <block type="remote_motor"></block>
       <block type="water_motor"></block>
       <block type="tank_motor"></block>
+    </category>
+    <category name="LEDs" colour="#FFB56A">
+      <block type="red_led"></block>
+      <block type="yellow_led"></block>
+      <block type="green_led"></block>
     </category>
     <category name="sensor" colour="#2EB061">
       <block type="sensor"></block>
@@ -634,9 +654,13 @@
     </category>
     <sep></sep>
     <category name="Logic" colour="#4C97FF">
-      <block type="logic_compare"></block>
       <block type="logic_operation"></block>
       <block type="logic_boolean"></block>
+      <block type="logical_comparison"></block>
+
+      <block type="math_number">
+        <field name="NUM">1</field>
+      </block>
     </category>
     <category name="Maths" colour="#9ACD32">
       <block type="math_number">
@@ -703,8 +727,8 @@
 
       <div class="servo-list">
         <label class="servo-row">
-          <input type="radio" name="servoPort" value="S1">
-          <div class="servo-name">Servo S1</div>
+          <input type="radio" name="servoPort" value="C8">
+          <div class="servo-name">Servo C8</div>
           <div class="servo-pins">
             <span class="pin pin-gnd">GND</span>
             <span class="pin pin-vcc">VCC</span>
@@ -757,12 +781,14 @@
       <div class="box1">
         <div class="row"><label><input type="checkbox" id="ledPinD2"> D2</label></div>
         <div class="row"><label><input type="checkbox" id="ledPinD3"> D3</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinD4"> D4</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinD5"> D5</label></div>
-        <div class="row"><label><input type="checkbox" id="ledPinD6"> D6</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF4"> F4</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF5"> F5</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinG5"> G5</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinG6"> G6</label></div>
         <div class="row"><label><input type="checkbox" id="ledPinD7"> D7</label></div>
         <div class="row"><label><input type="checkbox" id="ledPinD8"> D8</label></div>
         <div class="row"><label><input type="checkbox" id="ledPinD9"> D9</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinB15"> B15</label></div>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
@@ -791,8 +817,16 @@
       Blockly.defineBlocksWithJsonArray([
         {
           type: "start",
-          message0: "Start",
-          output: null,
+          message0: "Start %1 return %2",
+          args0: [{
+            type: "input_statement",
+            name: "DO"
+          },
+          {
+            type: "input_value",
+            name: "VALUE"
+          }
+          ],
           nextStatement: null,
           extensions: ["defult_style"]
         },
@@ -806,7 +840,8 @@
               width: 15,
               height: 15,
               alt: "",
-              name: "IMG"
+              name: "IMG",
+
             },
             {
               type: "field_label",
@@ -919,7 +954,7 @@
         },
         {
           type: "do_dc_motor",
-          message0: "DC Motor %1 %2 %3 %4",
+          message0: "DC Motor %1 %2 %3 %4 %5",
           args0: [
             {
               type: "field_image",
@@ -938,14 +973,21 @@
               type: "field_number",
               name: "SPEED",
               value: 60,
-              min: -100,
-              max: 100,
-              precision: 1
+              min: 0
             },
             {
               type: "field_label",
               text: "%"
-            }
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["forword", "forword"],
+                ["reverse", "reverse"],
+                ["stop", "stop"]
+              ]
+            },
           ],
           colour: "#81d4ed",
           previousStatement: null,
@@ -954,7 +996,7 @@
         },
         {
           type: "do_servo",
-          message0: "servo on %1 %2 %3",
+          message0: "servo on %1 %2 %3 %4",
           args0: [
             {
               type: "field_image",
@@ -968,6 +1010,14 @@
               type: "field_label",
               name: "SERVO_PORT",
               text: ""
+            },
+            {
+              type: "field_dropdown",
+              name: "STATE",
+              options: [
+                ["forword", "forword"],
+                ["backward", "backward"]
+              ]
             },
             {
               type: "field_number",
@@ -1065,6 +1115,15 @@
 
         },
         {
+          type: "lp_start",
+          message0: "@@start",
+
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["dc_color"]
+
+        },
+        {
           type: "lp_repeat_count",
           message0: "repeat %1 %2 times",
           args0: [
@@ -1131,7 +1190,7 @@
         },
         {
           type: "din_sound",
-          message0: "Sound sensor pin %1 %2",
+          message0: "Ultra Sonic sensor pin %1 %2",
           args0: [
             {
               type: "field_image",
@@ -1140,7 +1199,8 @@
               height: 15,
               alt: "",
               name: "IMG"
-            }, {
+            },
+            {
               type: "field_label",
               name: "PORTS",
               text: ""
@@ -1515,8 +1575,151 @@
           nextStatement: null,
           extensions: ["port_image_click", "ultra_style"]
         },
-
-
+        {
+          type: 'logical_comparison',
+          message0: '%1 %2 %3',
+          args0: [
+            {
+              type: 'input_value',
+              name: 'VALUE1'
+            },
+            {
+              type: 'field_dropdown',
+              name: 'OPERATOR',
+              options: [
+                ['<', '<'],
+                ['>', '>'],
+                ['==', '=='],
+                ['>=', '>='],
+                ['<=', '<='],
+                ['!=', '!=']
+              ]
+            },
+            {
+              type: 'input_value',
+              name: 'VALUE2'
+            }
+          ],
+          colour: '#4C97FF',
+          output: 'Boolean',
+          inputsInline: true
+        }, {
+          type: 'red_led',
+          message0: "Red LED %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG",
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "VAL1",
+              value: 1,
+              min: 0,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_number",
+              name: "VAL2",
+              value: 1,
+              min: 0,
+              max: 100,
+              precision: 1
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["led_pin_image_click", "dummy_style"]
+        },
+        {
+          type: 'yellow_led',
+          message0: "YELLOW LED %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "VAL1",
+              value: 1,
+              min: 0,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_number",
+              name: "VAL2",
+              value: 1,
+              min: 0,
+              max: 100,
+              precision: 1
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["led_pin_image_click", "dummy_style"]
+        },
+        {
+          type: 'green_led',
+          message0: "GREEN LED %1 %2 %3 %4",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+            {
+              type: "field_number",
+              name: "VAL1",
+              value: 1,
+              min: 0,
+              max: 100,
+              precision: 1
+            },
+            {
+              type: "field_number",
+              name: "VAL2",
+              value: 1,
+              min: 0,
+              max: 100,
+              precision: 1
+            }
+          ],
+          colour: "#81d4ed",
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["led_pin_image_click", "dummy_style"]
+        },
 
       ]);
 
@@ -1542,7 +1745,14 @@
           openMotorSelectionModal(this);
         });
       });
-
+      Blockly.Extensions.register('servo_color', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('block-servo');
+          }
+        });
+      });
       Blockly.Extensions.register('servo_image_click', function () {
         const imgField = this.getField('IMG');
         if (!imgField) return;
@@ -1550,6 +1760,8 @@
           openServoSelectionModal(this);
         });
       });
+
+
 
       /* ===== BORDER / TYPE CLASS EXTENSIONS (for gradients) ===== */
 
@@ -1562,14 +1774,7 @@
         });
       });
 
-      Blockly.Extensions.register('servo_color', function () {
-        const block = this;
-        block.setOnChange(function () {
-          if (block.svgGroup_) {
-            block.svgGroup_.classList.add('block-servo');
-          }
-        });
-      });
+
       Blockly.Extensions.register('led_pin_image_click', function () {
         const imgField = this.getField('IMG');
         if (!imgField) return;
@@ -1712,29 +1917,37 @@
       Blockly.Python['do_dc_motor'] = function (block) {
         const speed = block.getFieldValue('SPEED') || 0;
         const motors = (block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()).filter(Boolean);
-
+        const state = block.getFieldValue('STATE')
         if (motors.length === 0) {
           return "# No motors selected\n";
         }
 
         let code = "";
         motors.forEach(motor => {
-          code += `robot.dc_motor("${motor}", ${speed})\n`;
+          code += `control_motor("F9","D6",${state})\n`;
         });
 
         return code;
       };
 
-      py['start'] = () => 'start()\n';
+     Blockly.Python['start'] = function (block) {
+       const body = Blockly.Python.statementToCode(block, 'DO') || 'pass/n'; 
+       const value = Blockly.Python.valueToCode( block, 'VALUE', Blockly.Python.ORDER_NONE) || 'none'; 
+      return `def start(${value}):\n${body}\n `;
+     }
+
+
+
 
       Blockly.Python['do_servo'] = function (block) {
         const servoPort = block.getFieldValue('SERVO_PORT') || '';
         const angle = block.getFieldValue('ANG') || 0;
+        const state = block.getFieldValue('STATE')
 
         if (!servoPort) {
           return "# do_servo: no servo port selected\n";
         }
-        return `robot.servo_write('${servoPort}', ${angle})\n`;
+        return `control.servo('${servoPort}',${state},${angle})\n`;
       };
 
       Blockly.Python['ctl_delay'] = function (block) {
@@ -1748,23 +1961,28 @@
         return `while ${cond}:\n${body}`;
       };
 
-      py['lp_break'] = () => 'break\n';
+      py['lp_break'] = () => '@@END\n';
+      py['lp_start'] = () => '@@START\n';
 
       py['lp_repeat_count'] = b => {
         const n1 = +b.getFieldValue("PIN") || 0;
         const n = +b.getFieldValue('COUNT') || 0;
         const body = py.statementToCode(b, 'DO') || '  pass\n';
-        return `for ${n1} range(${n}):\n${body}`;
+        return `for _ in range(${n}):\n${body}`;
       };
 
       py['lp_label'] = b => `# label: ${b.getFieldValue('NAME') || 'lbl1'}\n`;
 
-      py['din_if_else'] = b => {
-        const cond = py.valueToCode(b, 'COND', py.ORDER_NONE) || 'False';
-        const do_ = py.statementToCode(b, 'DO') || '  pass\n';
-        const el_ = py.statementToCode(b, 'ELSE') || '  pass\n';
-        return `if ${cond}:\n${do_}else:\n${el_}`;
+      Blockly.Python['din_if_else'] = function (block) {
+        const condition = Blockly.Python.valueToCode(block, 'COND', Blockly.Python.ORDER_NONE) || 'False';  // Ensure Boolean
+        const doStatements = Blockly.Python.statementToCode(block, 'DO') || '  pass\n';  // The 'do' part
+        const elseStatements = Blockly.Python.statementToCode(block, 'ELSE') || '  pass\n';  // The 'else' part
+
+        return `if ${condition}:\n${doStatements}else: \n ${elseStatements} \n`;
       };
+
+
+
       Blockly.Python['do_led_param'] = function (block) {
         const pinsTxt = block.getFieldValue('PORTS') || '';   // 🔴 PINS → PORTS
 
@@ -1790,60 +2008,119 @@
       };
 
 
+      Blockly.Python['logical_comparison'] = function (block) {
+        var value1 = Blockly.Python.valueToCode(block, 'VALUE1', Blockly.Python.ORDER_NONE);
+        var operator = block.getFieldValue('OPERATOR');
+        var value2 = Blockly.Python.valueToCode(block, 'VALUE2', Blockly.Python.ORDER_NONE);
+
+        var code = `${value1} ${operator} ${value2}`;
+        return [code, Blockly.Python.ORDER_RELATIONAL];
+      };
+
+
+      Blockly.Python['red_led'] = function (block) {
+        const pinsTxt = block.getFieldValue('PORTS') || '';   // 🔴 PINS → PORTS
+
+        const val1 = block.getFieldValue('VAL1') || 1;
+        const val2 = block.getFieldValue('VAL2') || 1;
+
+        const pins = pinsTxt.split(',').map(s => s.trim()).filter(Boolean);
+
+        if (!pins.length) {
+          return "# red_blink: no pins selected\n";
+        }
+
+        let code = '';
+        pins.forEach(pin => {
+          // using 'D3' style names:
+          code += `red_blink("${pin}", ${val1}, ${val2})\n`;
+        });
+
+        return code;
+      };
+      Blockly.Python['yellow_led'] = function (block) {
+        const pinsTxt = block.getFieldValue('PORTS') || '';   // 🔴 PINS → PORTS
+
+        const val1 = block.getFieldValue('VAL1') || 1;
+        const val2 = block.getFieldValue('VAL2') || 1;
+
+        const pins = pinsTxt.split(',').map(s => s.trim()).filter(Boolean);
+
+        if (!pins.length) {
+          return "# Green_blink: no pins selected\n";
+        }
+
+        let code = '';
+        pins.forEach(pin => {
+          // using 'D3' style names:
+          code += `yellow_blink("${pin}", ${val1},${val2})\n`;
+        });
+
+        return code;
+      };
+      Blockly.Python['green_led'] = function (block) {
+        const pinsTxt = block.getFieldValue('PORTS') || '';   // 🔴 PINS → PORTS
+
+        const val1 = block.getFieldValue('VAL1') || 1;
+        const val2 = block.getFieldValue('VAL2') || 1;
+
+        const pins = pinsTxt.split(',').map(s => s.trim()).filter(Boolean);
+
+        if (!pins.length) {
+          return "# Green_blink: no pins selected\n";
+        }
+
+        let code = '';
+        pins.forEach(pin => {
+          // using 'D3' style names:
+          code += `green_blink("${pin}", ${val1},${val2})\n`;
+        });
+
+        return code;
+      };
 
 
 
       Blockly.Python['din_ir'] = function (block) {
-        const portsTxt = block.getFieldValue('PORTS') || ''; // Get selected pins from PORTS field
-        const pins = portsTxt.split(',').map(s => s.trim()).filter(Boolean); // Split the pins
+        const port = block.getFieldValue('PORTS') || '2';  // Default to port 2 if no port is selected
 
-        // Check if there are selected pins
-        if (!pins.length) {
-          return "# din_ir: no pins selected\n";  // If no pins, return placeholder
-        }
-
-        // Generate Python code using the selected pins
-        let code = '';
-        pins.forEach(pin => {
-          code += `robot.ir_detected(${pin})\n`;  // Generate the Python code for each pin
-        });
-
-        return code;
+        // Return the correct condition as a tuple
+        return [`robot.ir_detected(${port})`, Blockly.Python.ORDER_NONE];
       };
+
+
 
       Blockly.Python['din_sound'] = function (block) {
-        const portsTxt = block.getFieldValue('PORTS') || ''; // Get selected pins from PORTS field
-        const pins = portsTxt.split(',').map(s => s.trim()).filter(Boolean); // Split the pins
+        const portsTxt = block.getFieldValue('PORTS') || '';
 
-        // Check if there are selected pins
+        // Split ports like "D3,H1"
+        const pins = portsTxt
+          .split(',')
+          .map(p => p.trim())
+          .filter(Boolean);
+
+        // If no ports are selected, show a warning message
         if (!pins.length) {
-          return "# din_sound: no pins selected\n";  // If no pins, return placeholder
+          return ['# Invalid: Please select at least one port', Blockly.Python.ORDER_NONE];
         }
 
-        // Generate Python code using the selected pins
-        let code = '';
-        pins.forEach(pin => {
-          code += `sound_sensor(${pin})\n`;  // Generate the Python code for each pin
-        });
+        // If one port is selected, return code for that port only
+        if (pins.length === 1) {
+          return [`get_distance("${pins[0]}")`, Blockly.Python.ORDER_FUNCTION_CALL];
+        }
 
-        return code;
+        // If two ports are selected, use both for Trig and Echo
+        if (pins.length === 2) {
+          return [`get_distance("${pins[0]}", "${pins[1]}")`, Blockly.Python.ORDER_FUNCTION_CALL];
+        }
+
+        // If more than two ports are selected, return the first two only
+        return [`get_distance("${pins[0]}", "${pins[1]}","${pins[2]}")`, Blockly.Python.ORDER_FUNCTION_CALL];
       };
+
       Blockly.Python['din_metal'] = function (block) {
-        const portsTxt = block.getFieldValue('PORTS') || ''; // Get selected pins from PORTS field
-        const pins = portsTxt.split(',').map(s => s.trim()).filter(Boolean); // Split the pins
-
-        // Check if there are selected pins
-        if (!pins.length) {
-          return "# din_metal: no pins selected\n";  // If no pins, return placeholder
-        }
-
-        // Generate Python code using the selected pins
-        let code = '';
-        pins.forEach(pin => {
-          code += `metal_sensor(${pin})\n`;  // Generate the Python code for each pin
-        });
-
-        return code;
+        const port = block.getFieldValue('PORTS') || '2';
+        return [`robot.metal_detected(${port})`, Blockly.Python.ORDER_NONE];
       };
       Blockly.Python['din_read'] = function (block) {
         const portsTxt = block.getFieldValue('PORTS') || ''; // Get selected pins from PORTS field
@@ -1860,7 +2137,7 @@
           code += `read_sensor(${pin})\n`;  // Generate the Python code for each pin
         });
 
-        return code;
+        return [code, Blockly.Python.ORDER_NONE];
       };
 
       Blockly.Python['mini_motor'] = function (block) {
@@ -1873,7 +2150,7 @@
 
         let code = "";
         motors.forEach(motor => {
-          code += `mini_motor("${motor}", ${speed})\n`;
+          code += `red_blink("F4",1,1)\n`;
         });
 
         return code;
@@ -1888,7 +2165,7 @@
 
         let code = "";
         motors.forEach(motor => {
-          code += `remote_motor("${motor}", ${speed})\n`;
+          code += `yellow_blink("G5",1,1)\n`;
         });
 
         return code;
@@ -1903,7 +2180,7 @@
 
         let code = "";
         motors.forEach(motor => {
-          code += `water_motor("${motor}", ${speed})\n`;
+          code += `green_blink("B15",1,1)\n`;
         });
 
         return code;
@@ -1990,159 +2267,9 @@
         const fn = (stateVal === '1') ? 'rc_sensor_on' : 'rc_sensor_off';
         return ports.map(p => `${fn}(${p})\n`).join('');
       };
+
     }
 
-    /* --- modal wiring --- */
-    let currentPortBlock = null;
-    const ALL_PORT_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-
-    function openPortSelectionModal(block) {
-      currentPortBlock = block;
-      const txt = block.getFieldValue('PORTS') || '';
-      const selectedSet = new Set(
-        txt.split(',').map(s => s.trim()).filter(Boolean)
-      );
-
-      ALL_PORT_NUMBERS.forEach(p => {
-        const cb = document.getElementById('port' + p);
-        if (cb) cb.checked = selectedSet.has(String(p));
-      });
-
-      document.getElementById('portSelectionModal').style.display = 'block';
-    }
-
-    function closePortModal() {
-      document.getElementById('portSelectionModal').style.display = 'none';
-      currentPortBlock = null;
-    }
-
-    function savePortSelection() {
-      if (!currentPortBlock) { closePortModal(); return; }
-
-      const sel = [];
-      ALL_PORT_NUMBERS.forEach(p => {
-        const cb = document.getElementById('port' + p);
-        if (cb && cb.checked) sel.push(String(p));
-      });
-
-      const label = sel.length ? sel.join(',') : '—';
-      currentPortBlock.setFieldValue(label, 'PORTS');
-
-      closePortModal();
-    }
-
-    let currentMotorBlock = null;
-
-    function openMotorSelectionModal(block) {
-      currentMotorBlock = block;
-      const selectedMotors = new Set((block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()));
-
-      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
-        const checkbox = document.getElementById('motor' + motor);
-        if (checkbox) checkbox.checked = selectedMotors.has(motor);
-      });
-
-      document.getElementById('motorSelectionModal').style.display = 'block';
-    }
-
-    function closeModal() {
-      document.getElementById('motorSelectionModal').style.display = 'none';
-    }
-
-    function saveMotorSelection() {
-      if (!currentMotorBlock) { closeModal(); return; }
-
-      const selected = [];
-      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
-        const checkbox = document.getElementById('motor' + motor);
-        if (checkbox && checkbox.checked) selected.push(motor);
-      });
-
-      const label = selected.length ? selected.join(',') : '—';
-      currentMotorBlock.setFieldValue(label, 'MOTORS');
-
-      closeModal();
-    }
-
-    /* ==== SERVO MODAL ==== */
-    let currentServoBlock = null;
-
-    function openServoSelectionModal(block) {
-      currentServoBlock = block;
-      const currentPort = block.getFieldValue('SERVO_PORT') || '';
-
-      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
-      radios.forEach(r => {
-        r.checked = (r.value === currentPort);
-      });
-
-      document.getElementById('servoSelectionModal').style.display = 'block';
-    }
-
-    function closeServoModal() {
-      document.getElementById('servoSelectionModal').style.display = 'none';
-      currentServoBlock = null;
-    }
-
-    function saveServoSelection() {
-      if (!currentServoBlock) { closeServoModal(); return; }
-
-      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
-      let selectedValue = '';
-      radios.forEach(r => {
-        if (r.checked) selectedValue = r.value;
-      });
-
-      if (!selectedValue) {
-        alert('Please select a servo port.');
-        return;
-      }
-
-      currentServoBlock.setFieldValue(selectedValue, 'SERVO_PORT');
-      closeServoModal();
-    }
-    /* ==== LED PIN MODAL ==== */
-    let currentLedBlock = null;
-    const LED_PIN_NAMES = ['D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9'];
-
-    function openLedPinSelectionModal(block) {
-      currentLedBlock = block;
-
-      const txt = block.getFieldValue('PORTS') || '';   // 🔴 changed PINS → PORTS
-      const selected = new Set(
-        txt.split(',').map(s => s.trim()).filter(Boolean)
-      );
-
-      LED_PIN_NAMES.forEach(pin => {
-        const cb = document.getElementById('ledPin' + pin);
-        if (cb) cb.checked = selected.has(pin);
-      });
-
-      document.getElementById('ledPinSelectionModal').style.display = 'block';
-    }
-
-    function closeLedPinModal() {
-      document.getElementById('ledPinSelectionModal').style.display = 'none';
-      currentLedBlock = null;
-    }
-
-    function saveLedPinSelection() {
-      if (!currentLedBlock) {
-        closeLedPinModal();
-        return;
-      }
-
-      const sel = [];
-      LED_PIN_NAMES.forEach(pin => {
-        const cb = document.getElementById('ledPin' + pin);
-        if (cb && cb.checked) sel.push(pin);
-      });
-
-      const label = sel.length ? sel.join(',') : '—';
-      currentLedBlock.setFieldValue(label, 'PORTS');   // 🔴 changed PINS → PORTS
-
-      closeLedPinModal();
-    }
 
     // ---- Add multiple gradient defs into Blockly SVG (from Code A) ----
     function addGradientDefs() {
@@ -2334,7 +2461,7 @@
       else if (block.type == 'xray_sensor') {
         blockPath.setAttribute('filter', 'url(#tempshadow)')
       }
-      else if (block.type == '"rc_sensor') {
+      else if (block.type == 'rc_sensor') {
         blockPath.setAttribute('filter', 'url(#tempshadow)')
       }
       else if (block.type === 'mini_motor') {
@@ -2398,6 +2525,157 @@
       document.head.appendChild(style);
     }
 
+    /* --- modal wiring --- */
+    let currentPortBlock = null;
+    const ALL_PORT_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    function openPortSelectionModal(block) {
+      currentPortBlock = block;
+      const txt = block.getFieldValue('PORTS') || '';
+      const selectedSet = new Set(
+        txt.split(',').map(s => s.trim()).filter(Boolean)
+      );
+
+      ALL_PORT_NUMBERS.forEach(p => {
+        const cb = document.getElementById('port' + p);
+        if (cb) cb.checked = selectedSet.has(String(p));
+      });
+
+      document.getElementById('portSelectionModal').style.display = 'block';
+    }
+
+    function closePortModal() {
+      document.getElementById('portSelectionModal').style.display = 'none';
+      currentPortBlock = null;
+    }
+
+    function savePortSelection() {
+      if (!currentPortBlock) { closePortModal(); return; }
+
+      const sel = [];
+      ALL_PORT_NUMBERS.forEach(p => {
+        const cb = document.getElementById('port' + p);
+        if (cb && cb.checked) sel.push(String(p));
+      });
+
+      const label = sel.length ? sel.join(',') : '—';
+      currentPortBlock.setFieldValue(label, 'PORTS');
+
+      closePortModal();
+    }
+
+    let currentMotorBlock = null;
+
+    function openMotorSelectionModal(block) {
+      currentMotorBlock = block;
+      const selectedMotors = new Set((block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()));
+
+      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
+        const checkbox = document.getElementById('motor' + motor);
+        if (checkbox) checkbox.checked = selectedMotors.has(motor);
+      });
+
+      document.getElementById('motorSelectionModal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('motorSelectionModal').style.display = 'none';
+    }
+
+    function saveMotorSelection() {
+      if (!currentMotorBlock) { closeModal(); return; }
+
+      const selected = [];
+      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
+        const checkbox = document.getElementById('motor' + motor);
+        if (checkbox && checkbox.checked) selected.push(motor);
+      });
+
+      const label = selected.length ? selected.join(',') : '—';
+      currentMotorBlock.setFieldValue(label, 'MOTORS');
+
+      closeModal();
+    }
+
+    /* ==== SERVO MODAL ==== */
+    let currentServoBlock = null;
+
+    function openServoSelectionModal(block) {
+      currentServoBlock = block;
+      const currentPort = block.getFieldValue('SERVO_PORT') || '';
+
+      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
+      radios.forEach(r => {
+        r.checked = (r.value === currentPort);
+      });
+
+      document.getElementById('servoSelectionModal').style.display = 'block';
+    }
+
+    function closeServoModal() {
+      document.getElementById('servoSelectionModal').style.display = 'none';
+      currentServoBlock = null;
+    }
+
+    function saveServoSelection() {
+      if (!currentServoBlock) { closeServoModal(); return; }
+
+      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
+      let selectedValue = '';
+      radios.forEach(r => {
+        if (r.checked) selectedValue = r.value;
+      });
+
+      if (!selectedValue) {
+        alert('Please select a servo port.');
+        return;
+      }
+
+      currentServoBlock.setFieldValue(selectedValue, 'SERVO_PORT');
+      closeServoModal();
+    }
+    /* ==== LED PIN MODAL ==== */
+    let currentLedBlock = null;
+    const LED_PIN_NAMES = ['D2', 'D3', 'F4', 'F5', 'G5', 'G6', 'D7', 'D8', 'D9', 'B15'];
+
+    function openLedPinSelectionModal(block) {
+      currentLedBlock = block;
+
+      const txt = block.getFieldValue('PORTS') || '';   // 🔴 changed PINS → PORTS
+      const selected = new Set(
+        txt.split(',').map(s => s.trim()).filter(Boolean)
+      );
+
+      LED_PIN_NAMES.forEach(pin => {
+        const cb = document.getElementById('ledPin' + pin);
+        if (cb) cb.checked = selected.has(pin);
+      });
+
+      document.getElementById('ledPinSelectionModal').style.display = 'block';
+    }
+
+    function closeLedPinModal() {
+      document.getElementById('ledPinSelectionModal').style.display = 'none';
+      currentLedBlock = null;
+    }
+
+    function saveLedPinSelection() {
+      if (!currentLedBlock) {
+        closeLedPinModal();
+        return;
+      }
+
+      const sel = [];
+      LED_PIN_NAMES.forEach(pin => {
+        const cb = document.getElementById('ledPin' + pin);
+        if (cb && cb.checked) sel.push(pin);
+      });
+
+      const label = sel.length ? sel.join(',') : '—';
+      currentLedBlock.setFieldValue(label, 'PORTS');   // 🔴 changed PINS → PORTS
+
+      closeLedPinModal();
+    }
 
 
     // ===== Desktop: Web Serial USB to STM32 =====
@@ -2558,7 +2836,7 @@
       // Connect to the MQTT broker
       mqttClient.on('connect', function () {
         console.log('Connected to HiveMQ broker');
-        mqttClient.publish('esp32/boot', code);
+        mqttClient.publish('esp32/boot',`@@START ${code} @@END`);
 
         // Subscribe to the topics
         mqttClient.subscribe(topics, (err) => {
@@ -2660,7 +2938,7 @@
 
       // Theme from Code A (glass style)
       const Theme = Blockly.Theme.defineTheme('rndmfg_glass', {
-        base: Blockly.Themes.Classic,
+        base: Blockly.Themes.Zelos,
         componentStyles: {
           workspaceBackgroundColour: '#ffffff',
           toolboxBackgroundColour: 'rgba(15,23,42,0.7)',
@@ -2768,7 +3046,7 @@
       // runs whenever blocks change – just for on-screen preview
       function updateCode() {
         const code = Blockly.Python.workspaceToCode(workspace);
-        pyOut.textContent = code || '# (no blocks yet)';
+        pyOut.textContent =  "@@START "+code || '# (no blocks yet)';
 
         // Optional live preview message (not used for upload)
         try {
