@@ -417,9 +417,9 @@
       background: #e8f4f7 !important;
     }
 
-    /* .blocklyMainBackground {
+    .blocklyMainBackground {
       fill: #ffffff !important;
-    } */
+    }
 
     .blocklyToolboxDiv {
       background: rgba(15, 23, 42, 0.9) !important;
@@ -527,20 +527,6 @@
       stroke: #2685BF;
       stroke-width: 1px;
     }
-
-    .popup-icon {
-      position: fixed;
-      /* Keeps it fixed in the screen */
-      z-index: 9999;
-      /* Ensures it's on top */
-      top: 20px;
-      /* Adjust as needed */
-      right: 20px;
-      /* Adjust as needed */
-      cursor: pointer;
-      pointer-events: all;
-      /* Ensure the icon is clickable at all times */
-    }
   </style>
 </head>
 
@@ -560,6 +546,10 @@
         <button class="btn-circle fwd" id="btnWifi" title="WiFi Boot">
           <i class="fa-solid fa-wifi"></i>
         </button>
+        <button class="btn-circle back" id="btnBluetooth" title="Bluetooth Boot">
+          <i class="fa-brands fa-bluetooth-b"></i>
+        </button>
+
         <button class="btn-circle play" id="btnRun" title="Run ▶"><i class="fa-solid fa-copy"></i></button>
 
 
@@ -840,8 +830,7 @@
               width: 15,
               height: 15,
               alt: "",
-              name: "IMG",
-
+              name: "IMG"
             },
             {
               type: "field_label",
@@ -1613,7 +1602,7 @@
               width: 15,
               height: 15,
               alt: "",
-              name: "IMG",
+              name: "IMG"
             },
             {
               type: "field_label",
@@ -1719,8 +1708,7 @@
           previousStatement: null,
           nextStatement: null,
           extensions: ["led_pin_image_click", "dummy_style"]
-        },
-
+        }
       ]);
 
       Blockly.Extensions.register('port_on_img_click', function () {
@@ -1745,14 +1733,7 @@
           openMotorSelectionModal(this);
         });
       });
-      Blockly.Extensions.register('servo_color', function () {
-        const block = this;
-        block.setOnChange(function () {
-          if (block.svgGroup_) {
-            block.svgGroup_.classList.add('block-servo');
-          }
-        });
-      });
+
       Blockly.Extensions.register('servo_image_click', function () {
         const imgField = this.getField('IMG');
         if (!imgField) return;
@@ -1760,8 +1741,6 @@
           openServoSelectionModal(this);
         });
       });
-
-
 
       /* ===== BORDER / TYPE CLASS EXTENSIONS (for gradients) ===== */
 
@@ -1774,7 +1753,14 @@
         });
       });
 
-
+      Blockly.Extensions.register('servo_color', function () {
+        const block = this;
+        block.setOnChange(function () {
+          if (block.svgGroup_) {
+            block.svgGroup_.classList.add('block-servo');
+          }
+        });
+      });
       Blockly.Extensions.register('led_pin_image_click', function () {
         const imgField = this.getField('IMG');
         if (!imgField) return;
@@ -1930,14 +1916,12 @@
         return code;
       };
 
-     Blockly.Python['start'] = function (block) {
-       const body = Blockly.Python.statementToCode(block, 'DO') || 'pass/n'; 
-       const value = Blockly.Python.valueToCode( block, 'VALUE', Blockly.Python.ORDER_NONE) || 'none'; 
-      return `def start(${value}):\n${body}\n `;
-     }
-
-
-
+      Blockly.Python['start'] = function (block) {
+        const body = Blockly.Python.statementToCode(block, 'DO') || 'pass/n';
+        const value = Blockly.Python.valueToCode(
+          block, 'VALUE', Blockly.Python.ORDER_NONE) || '';
+        return `def start(${value}):\n${body}\n`
+      };
 
       Blockly.Python['do_servo'] = function (block) {
         const servoPort = block.getFieldValue('SERVO_PORT') || '';
@@ -2267,9 +2251,159 @@
         const fn = (stateVal === '1') ? 'rc_sensor_on' : 'rc_sensor_off';
         return ports.map(p => `${fn}(${p})\n`).join('');
       };
-
     }
 
+    /* --- modal wiring --- */
+    let currentPortBlock = null;
+    const ALL_PORT_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    function openPortSelectionModal(block) {
+      currentPortBlock = block;
+      const txt = block.getFieldValue('PORTS') || '';
+      const selectedSet = new Set(
+        txt.split(',').map(s => s.trim()).filter(Boolean)
+      );
+
+      ALL_PORT_NUMBERS.forEach(p => {
+        const cb = document.getElementById('port' + p);
+        if (cb) cb.checked = selectedSet.has(String(p));
+      });
+
+      document.getElementById('portSelectionModal').style.display = 'block';
+    }
+
+    function closePortModal() {
+      document.getElementById('portSelectionModal').style.display = 'none';
+      currentPortBlock = null;
+    }
+
+    function savePortSelection() {
+      if (!currentPortBlock) { closePortModal(); return; }
+
+      const sel = [];
+      ALL_PORT_NUMBERS.forEach(p => {
+        const cb = document.getElementById('port' + p);
+        if (cb && cb.checked) sel.push(String(p));
+      });
+
+      const label = sel.length ? sel.join(',') : '—';
+      currentPortBlock.setFieldValue(label, 'PORTS');
+
+      closePortModal();
+    }
+
+    let currentMotorBlock = null;
+
+    function openMotorSelectionModal(block) {
+      currentMotorBlock = block;
+      const selectedMotors = new Set((block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()));
+
+      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
+        const checkbox = document.getElementById('motor' + motor);
+        if (checkbox) checkbox.checked = selectedMotors.has(motor);
+      });
+
+      document.getElementById('motorSelectionModal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('motorSelectionModal').style.display = 'none';
+    }
+
+    function saveMotorSelection() {
+      if (!currentMotorBlock) { closeModal(); return; }
+
+      const selected = [];
+      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
+        const checkbox = document.getElementById('motor' + motor);
+        if (checkbox && checkbox.checked) selected.push(motor);
+      });
+
+      const label = selected.length ? selected.join(',') : '—';
+      currentMotorBlock.setFieldValue(label, 'MOTORS');
+
+      closeModal();
+    }
+
+    /* ==== SERVO MODAL ==== */
+    let currentServoBlock = null;
+
+    function openServoSelectionModal(block) {
+      currentServoBlock = block;
+      const currentPort = block.getFieldValue('SERVO_PORT') || '';
+
+      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
+      radios.forEach(r => {
+        r.checked = (r.value === currentPort);
+      });
+
+      document.getElementById('servoSelectionModal').style.display = 'block';
+    }
+
+    function closeServoModal() {
+      document.getElementById('servoSelectionModal').style.display = 'none';
+      currentServoBlock = null;
+    }
+
+    function saveServoSelection() {
+      if (!currentServoBlock) { closeServoModal(); return; }
+
+      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
+      let selectedValue = '';
+      radios.forEach(r => {
+        if (r.checked) selectedValue = r.value;
+      });
+
+      if (!selectedValue) {
+        alert('Please select a servo port.');
+        return;
+      }
+
+      currentServoBlock.setFieldValue(selectedValue, 'SERVO_PORT');
+      closeServoModal();
+    }
+    /* ==== LED PIN MODAL ==== */
+    let currentLedBlock = null;
+    const LED_PIN_NAMES = ['D2', 'D3', 'F4', 'F5', 'G5', 'G6', 'D7', 'D8', 'D9', 'B15'];
+
+    function openLedPinSelectionModal(block) {
+      currentLedBlock = block;
+
+      const txt = block.getFieldValue('PORTS') || '';   // 🔴 changed PINS → PORTS
+      const selected = new Set(
+        txt.split(',').map(s => s.trim()).filter(Boolean)
+      );
+
+      LED_PIN_NAMES.forEach(pin => {
+        const cb = document.getElementById('ledPin' + pin);
+        if (cb) cb.checked = selected.has(pin);
+      });
+
+      document.getElementById('ledPinSelectionModal').style.display = 'block';
+    }
+
+    function closeLedPinModal() {
+      document.getElementById('ledPinSelectionModal').style.display = 'none';
+      currentLedBlock = null;
+    }
+
+    function saveLedPinSelection() {
+      if (!currentLedBlock) {
+        closeLedPinModal();
+        return;
+      }
+
+      const sel = [];
+      LED_PIN_NAMES.forEach(pin => {
+        const cb = document.getElementById('ledPin' + pin);
+        if (cb && cb.checked) sel.push(pin);
+      });
+
+      const label = sel.length ? sel.join(',') : '—';
+      currentLedBlock.setFieldValue(label, 'PORTS');   // 🔴 changed PINS → PORTS
+
+      closeLedPinModal();
+    }
 
     // ---- Add multiple gradient defs into Blockly SVG (from Code A) ----
     function addGradientDefs() {
@@ -2525,157 +2659,6 @@
       document.head.appendChild(style);
     }
 
-    /* --- modal wiring --- */
-    let currentPortBlock = null;
-    const ALL_PORT_NUMBERS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-
-    function openPortSelectionModal(block) {
-      currentPortBlock = block;
-      const txt = block.getFieldValue('PORTS') || '';
-      const selectedSet = new Set(
-        txt.split(',').map(s => s.trim()).filter(Boolean)
-      );
-
-      ALL_PORT_NUMBERS.forEach(p => {
-        const cb = document.getElementById('port' + p);
-        if (cb) cb.checked = selectedSet.has(String(p));
-      });
-
-      document.getElementById('portSelectionModal').style.display = 'block';
-    }
-
-    function closePortModal() {
-      document.getElementById('portSelectionModal').style.display = 'none';
-      currentPortBlock = null;
-    }
-
-    function savePortSelection() {
-      if (!currentPortBlock) { closePortModal(); return; }
-
-      const sel = [];
-      ALL_PORT_NUMBERS.forEach(p => {
-        const cb = document.getElementById('port' + p);
-        if (cb && cb.checked) sel.push(String(p));
-      });
-
-      const label = sel.length ? sel.join(',') : '—';
-      currentPortBlock.setFieldValue(label, 'PORTS');
-
-      closePortModal();
-    }
-
-    let currentMotorBlock = null;
-
-    function openMotorSelectionModal(block) {
-      currentMotorBlock = block;
-      const selectedMotors = new Set((block.getFieldValue('MOTORS') || '').split(',').map(s => s.trim()));
-
-      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
-        const checkbox = document.getElementById('motor' + motor);
-        if (checkbox) checkbox.checked = selectedMotors.has(motor);
-      });
-
-      document.getElementById('motorSelectionModal').style.display = 'block';
-    }
-
-    function closeModal() {
-      document.getElementById('motorSelectionModal').style.display = 'none';
-    }
-
-    function saveMotorSelection() {
-      if (!currentMotorBlock) { closeModal(); return; }
-
-      const selected = [];
-      ['M1', 'M2', 'M3', 'M4'].forEach(motor => {
-        const checkbox = document.getElementById('motor' + motor);
-        if (checkbox && checkbox.checked) selected.push(motor);
-      });
-
-      const label = selected.length ? selected.join(',') : '—';
-      currentMotorBlock.setFieldValue(label, 'MOTORS');
-
-      closeModal();
-    }
-
-    /* ==== SERVO MODAL ==== */
-    let currentServoBlock = null;
-
-    function openServoSelectionModal(block) {
-      currentServoBlock = block;
-      const currentPort = block.getFieldValue('SERVO_PORT') || '';
-
-      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
-      radios.forEach(r => {
-        r.checked = (r.value === currentPort);
-      });
-
-      document.getElementById('servoSelectionModal').style.display = 'block';
-    }
-
-    function closeServoModal() {
-      document.getElementById('servoSelectionModal').style.display = 'none';
-      currentServoBlock = null;
-    }
-
-    function saveServoSelection() {
-      if (!currentServoBlock) { closeServoModal(); return; }
-
-      const radios = document.querySelectorAll('#servoSelectionModal input[name="servoPort"]');
-      let selectedValue = '';
-      radios.forEach(r => {
-        if (r.checked) selectedValue = r.value;
-      });
-
-      if (!selectedValue) {
-        alert('Please select a servo port.');
-        return;
-      }
-
-      currentServoBlock.setFieldValue(selectedValue, 'SERVO_PORT');
-      closeServoModal();
-    }
-    /* ==== LED PIN MODAL ==== */
-    let currentLedBlock = null;
-    const LED_PIN_NAMES = ['D2', 'D3', 'F4', 'F5', 'G5', 'G6', 'D7', 'D8', 'D9', 'B15'];
-
-    function openLedPinSelectionModal(block) {
-      currentLedBlock = block;
-
-      const txt = block.getFieldValue('PORTS') || '';   // 🔴 changed PINS → PORTS
-      const selected = new Set(
-        txt.split(',').map(s => s.trim()).filter(Boolean)
-      );
-
-      LED_PIN_NAMES.forEach(pin => {
-        const cb = document.getElementById('ledPin' + pin);
-        if (cb) cb.checked = selected.has(pin);
-      });
-
-      document.getElementById('ledPinSelectionModal').style.display = 'block';
-    }
-
-    function closeLedPinModal() {
-      document.getElementById('ledPinSelectionModal').style.display = 'none';
-      currentLedBlock = null;
-    }
-
-    function saveLedPinSelection() {
-      if (!currentLedBlock) {
-        closeLedPinModal();
-        return;
-      }
-
-      const sel = [];
-      LED_PIN_NAMES.forEach(pin => {
-        const cb = document.getElementById('ledPin' + pin);
-        if (cb && cb.checked) sel.push(pin);
-      });
-
-      const label = sel.length ? sel.join(',') : '—';
-      currentLedBlock.setFieldValue(label, 'PORTS');   // 🔴 changed PINS → PORTS
-
-      closeLedPinModal();
-    }
 
 
     // ===== Desktop: Web Serial USB to STM32 =====
@@ -2836,7 +2819,7 @@
       // Connect to the MQTT broker
       mqttClient.on('connect', function () {
         console.log('Connected to HiveMQ broker');
-        mqttClient.publish('esp32/boot',`@@START ${code} @@END`);
+        mqttClient.publish('esp32/boot',`@@START ${code} @@END `);
 
         // Subscribe to the topics
         mqttClient.subscribe(topics, (err) => {
@@ -2913,6 +2896,101 @@
       });
     }
 
+    // ===============================
+    // BLE (Web Bluetooth) - BOOTING
+    // ===============================
+    const BLE_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const BLE_RX_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // WRITE (Web -> ESP32)
+    const BLE_TX_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // NOTIFY (ESP32 -> Web)
+
+    let bleDevice = null;
+    let bleServer = null;
+    let bleService = null;
+    let bleRxChar = null;
+    let bleTxChar = null;
+
+    function bleIsConnected() {
+      return bleDevice && bleDevice.gatt && bleDevice.gatt.connected && bleRxChar;
+    }
+
+    async function connectBLEBoot() {
+      if (!navigator.bluetooth) {
+        alert("Web Bluetooth not supported. Use Chrome/Edge.");
+        return false;
+      }
+
+      try {
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [BLE_SERVICE_UUID] }]
+        });
+
+        bleDevice.addEventListener("gattserverdisconnected", () => {
+          console.log("BLE disconnected");
+          handleBoardMessage("BLE disconnected");
+        });
+
+        bleServer = await bleDevice.gatt.connect();
+        bleService = await bleServer.getPrimaryService(BLE_SERVICE_UUID);
+
+        bleRxChar = await bleService.getCharacteristic(BLE_RX_UUID);
+        bleTxChar = await bleService.getCharacteristic(BLE_TX_UUID);
+
+        // optional: notifications from ESP32 -> web
+        await bleTxChar.startNotifications();
+        bleTxChar.addEventListener("characteristicvaluechanged", (event) => {
+          const decoder = new TextDecoder();
+          const msg = decoder.decode(event.target.value);
+          console.log("BLE notify:", msg);
+          handleBoardMessage("BLE: " + msg);
+        });
+
+        handleBoardMessage("BLE connected ✅");
+        return true;
+      } catch (e) {
+        console.error("BLE connect error:", e);
+        alert("BLE connect failed: " + e);
+        return false;
+      }
+    }
+
+    async function bleWriteText(text) {
+      const enc = new TextEncoder();
+      await bleRxChar.writeValue(enc.encode(text));
+    }
+
+    // Send code in chunks (BLE limit)
+    async function sendCodeToBLEBoot(code) {
+      if (!code || !code.trim()) {
+        alert("No code to send");
+        return;
+      }
+
+      if (!bleIsConnected()) {
+        const ok = await connectBLEBoot();
+        if (!ok) return;
+      }
+
+      try {
+        handleBoardMessage("BLE: sending...");
+
+        const CHUNK = 150; // safe chunk size
+        for (let i = 0; i < code.length; i += CHUNK) {
+          const part = code.slice(i, i + CHUNK);
+          await bleWriteText(`@@START \n ${part} \n @@END`);
+          await new Promise(r => setTimeout(r, 10)); // small delay
+        }
+
+        // optional: end marker (device should detect this)
+        // await bleWriteText("\n<<EOF>>\n");
+
+        handleBoardMessage("BLE: sent ✅");
+      } catch (e) {
+        console.error("BLE send error:", e);
+        alert("BLE send failed: " + e);
+      }
+    }
+
+
 
 
 
@@ -2938,7 +3016,7 @@
 
       // Theme from Code A (glass style)
       const Theme = Blockly.Theme.defineTheme('rndmfg_glass', {
-        base: Blockly.Themes.Zelos,
+        base: Blockly.Themes.Classic,
         componentStyles: {
           workspaceBackgroundColour: '#ffffff',
           toolboxBackgroundColour: 'rgba(15,23,42,0.7)',
@@ -2989,6 +3067,23 @@
 
         // Send code via MQTT
         await sendCodeToESP32_MQTT(code);
+      };
+
+      // Bluetooth boot button
+      document.getElementById("btnBluetooth").onclick = async () => {
+        if (!workspace) {
+          alert("Blockly not ready yet");
+          return;
+        }
+
+        const code = Blockly.Python.workspaceToCode(workspace);
+
+        if (!code.trim()) {
+          alert("No code to send");
+          return;
+        }
+
+        await sendCodeToBLEBoot(code);
       };
 
 
@@ -3046,7 +3141,7 @@
       // runs whenever blocks change – just for on-screen preview
       function updateCode() {
         const code = Blockly.Python.workspaceToCode(workspace);
-        pyOut.textContent =  "@@START "+code || '# (no blocks yet)';
+        pyOut.textContent = code || '# (no blocks yet)';
 
         // Optional live preview message (not used for upload)
         try {
