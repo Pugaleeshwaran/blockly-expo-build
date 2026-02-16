@@ -28,6 +28,10 @@
     },
     "assetBundlePatterns": [
       "**/*"
+    ],
+    "plugins": [
+      "react-native-ble-plx",
+      "expo-asset"
     ]
   }
 }
