@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>rndmfg — Blockly (Python generator)</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/brands.min.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <script>
+    (function loadBlockly() {
+      function add(src, next) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.defer = false;
+        s.async = false;
+        s.onload = next || null;
+        s.onerror = function () { console.error("Failed to load:", src); };
+        document.head.appendChild(s);
+      }
+      add('https://unpkg.com/blockly@10.4.3/blockly_compressed.js', function () {
+        add('https://unpkg.com/blockly@10.4.3/blocks_compressed.js', function () {
+          add('https://unpkg.com/blockly@10.4.3/python_compressed.js', function () {
+            add('https://cdn.jsdelivr.net/npm/blockly@10.4.3/msg/en.js', function () {
+              add('https://unpkg.com/@blockly/field-colour-hsv-sliders/dist/index.js', function () {
+                console.log("Blockly loaded successfully!");
+                window.__blocklyLoaded = true;
+              });
+            });
+          });
+        });
+      });
+    })();
+  </script>
+  <link rel="stylesheet" href="/assets/blockly/style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand" style="display:flex;align-items:center;gap:10px">
+        <img src="./assets/blockly/logo.png" alt="weblogo" style="width:60px;height:auto;object-fit:contain;">
+        <div style="font-size:24px;font-weight:900;text-transform:uppercase">Curio Lab</div>
+      </div>
+      <div class="btns">
+        <button class="btn-circle back" id="btnConnect" title="Connect Board"><i class="fa-solid fa-plug"></i></button>
+        <button class="btn-circle back" id="btnBluetooth" title="Bluetooth Boot"><i
+            class="fa-brands fa-bluetooth-b"></i></button>
+        <button class="btn-circle cwl" id="btnboot" title="save board"><i
+            class="fa-solid fa-cloud-arrow-up"></i></button>
+        <button class="btn-circle save" id="btnSave" title="Save"><i class="fa-solid fa-download"></i></button>
+        <button class="btn-circle fwd" id="btnLoad" title="Load"><i class="fa-brands fa-openid"></i></button>
+        <button class="btn-circle back" id="btnClear" title="Clear"><i class="fa-solid fa-broom"></i></button>
+        <button class="btn-circle output" id="showCode" title="expand"><i class="fa-solid fa-code"></i></button>
+      </div>
+    </div>
+
+    <aside class="rail">
+      <button class="button-86" id="playmode" role="button">play</button>
+      <div class="pill" id="bt-status-pill" onclick="openBT()">
+        <i class="fa-brands fa-bluetooth-b"></i>
+        <span id="bt-text">Bluetooth</span>
+      </div>
+      <button class="button-86" id="upload" role="button">Upload</button>
+      <button class="button-87" id="stop" role="button">Stop</button>
+      <button class="button-86" id="soft_reset" role="button">Soft Reset</button>
+      <button class="button-86" id="hard_reset" role="button">Hard Reset</button>
+    </aside>
+
+    <section class="main">
+      <div class="workspace">
+        <div id="blocklyDiv"></div>
+      </div>
+      <div id="codePanel" class="code">
+        <header style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Python (generated)</strong><small id="status">ready</small>
+        </header>
+        <pre id="pyOut"># drag & drop blocks to generate Python…</pre>
+        <div id="responseDisplay">Waiting for response...</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Toolbox -->
+  <xml id="toolbox" style="display:none">
+    <category name="Digital" colour="#FFD46B">
+      <block type="din_sound"></block>
+      <block type="din_tilt"></block>
+      <block type="din_door"></block>
+      <block type="din_button"></block>
+      <block type="din_motion"></block>
+      <block type="din_proximity"></block>
+      <block type="din_ir"></block>
+      <block type="din_flame"></block>
+      <block type="load_cell"></block>
+      <block type="steper"></block>
+      <block type="waterpump"></block>
+      <block type="solinoid"></block>
+      <block type="animo"></block>
+      <block type="relay"></block>
+      <block type="buzzer"></block>
+      <block type="minifan"></block>
+      <block type="buzzer_component"></block>
+      <block type="joystick_move"></block>
+      <block type="ir_sen"></block>
+    </category>
+    <category name="Analog" colour="#781692">
+      <block type="tep_ana"></block>
+      <block type="heart_beat"></block>
+      <block type="soil_moisture"></block>
+      <block type="dust"></block>
+      <block type="vibration-switch-sensor"></block>
+      <block type="Current-sensor"></block>
+      <block type="IR-Temp"></block>
+      <block type="temp2-sensor"></block>
+      <block type="ecg"></block>
+      <block type="ana_temp"></block>
+      <block type="water-turbidity-sensor"></block>
+      <block type="shock_sensor"></block>
+      <block type="flex-sensor"></block>
+      <block type="Air_quality_sensor"></block>
+      <block type="flexi_force_sensor"></block>
+      <block type="TDS_Water_sensor"></block>
+      <block type="din_flame"></block>
+      <block type="din_temp"></block>
+      <block type="water_sensor"></block>
+      <block type="din_ultra"></block>
+      <block type="voltage_sensor"></block>
+      <block type="humidity"></block>
+      <block type="ldr"></block>
+    </category>
+    <category name="I2c" colour="#A020F0">
+      <block type="magnetic_sensor"></block>
+      <block type="colour_sen"></block>
+      <block type="accelerometer_sensor"></block>
+      <block type="rtc_sensor"></block>
+      <block type="ambient-sen"></block>
+      <block type="LCD"></block>
+      <block type="pressure"></block>
+      <block type="compass"></block>
+      <block type="ceprom"></block>
+      <block type="gusture"></block>
+      <block type="ir_temp"></block>
+      <block type="motor_driver"></block>
+      <block type="nfc_reader"></block>
+      <block type="mag_encoder"></block>
+      <block type="rfc"></block>
+      <block type="text_speech"></block>
+      <block type="touch_sensor"></block>
+      <block type="uv_sensor"></block>
+      <block type="temp_sensor"></block>
+      <block type="accelerometer"></block>
+    </category>
+    <category name="PWM" colour="#781692">
+      <block type="do_dc_motor"></block>
+      <block type="do_servo"></block>
+      <block type="do_dc_motor2"></block>
+    </category>
+    <category name="LEDs" colour="#FFB56A">
+      <block type="do_led_param"></block>
+      <block type="do_led"></block>
+      <block type="red_led"></block>
+      <block type="yellow_led"></block>
+      <block type="light_freq"></block>
+      <block type="green_led"></block>
+      <block type="rgb_display"></block>
+      <block type="rgb_led_display"></block>
+      <block type="rgb_component"></block>
+      <block type="LCD_print"></block>
+    </category>
+    <category name="Tx-Rx" colour="#C0603E">
+      <block type="mini_motor"></block>
+      <block type="remote_motor"></block>
+      <block type="water_motor"></block>
+      <block type="tank_motor"></block>
+      <block type="port_on"></block>
+      <block type="port_off"></block>
+      <block type="sen_ultrasonic"></block>
+      <block type="sen_temp"></block>
+    </category>
+    <category name="SPI" colour="#2EB061">
+      <block type="sensor"></block>
+      <block type="tem_sensor"></block>
+      <block type="xray_sensor"></block>
+      <block type="rc_sensor"></block>
+      <block type="do_onoff"></block>
+      <block type="bt_send"></block>
+      <block type="loop_end"></block>
+    </category>
+    <category name="Loop" colour="#FF6347">
+      <block type="lp_while"></block>
+      <block type="lp_break"></block>
+      <block type="lp_start"></block>
+      <block type="lp_repeat_count"></block>
+      <block type="lp_label"></block>
+    </category>
+    <category name="Delay" colour="#FFB56A">
+      <block type="ctl_delay"></block>
+    </category>
+    <sep></sep>
+    <category name="Logic" colour="#4C97FF">
+      <block type="din_if_else"></block>
+      <block type="logic_operation"></block>
+      <block type="logic_boolean"></block>
+      <block type="logical_comparison"></block>
+      <block type="any_input_block"></block>
+      <block type="custom_if_then"></block>
+      <block type="system_status"></block>
+    </category>
+    <category name="Maths" colour="#9ACD32">
+      <block type="math_number">
+        <field name="NUM">1</field>
+      </block>
+      <block type="text"></block>
+      <block type="text_join"></block>
+    </category>
+    <category name="Function" custom="PROCEDURE" colour="#FF1493"></category>
+    <category name="Variable" custom="VARIABLE" colour="#0000FF"></category>
+    <sep></sep>
+    <category name="default block" colour="#9ACD32">
+      <block type="math_number">
+        <field name="NUM">0</field>
+      </block>
+      <block type="math_number">
+        <field name="NUM">0</field>
+      </block>
+
+      <block type="math_arithmetic">
+        <field name="OP">ADD</field>
+        <value name="A">
+          <block type="math_number">
+            <field name="NUM">1</field>
+          </block>
+        </value>
+        <value name="B">
+          <block type="math_number">
+            <field name="NUM">2</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="math_random_int">
+        <value name="FROM">
+          <block type="math_number">
+            <field name="NUM">1</field>
+          </block>
+        </value>
+        <value name="TO">
+          <block type="math_number">
+            <field name="NUM">100</field>
+          </block>
+        </value>
+      </block>
+
+      <!-- <block type="math_trigonometry">
+        <field name="OP">SIN</field>
+        <value name="ANGLE">
+          <block type="math_number">
+            <field name="NUM">90</field>
+          </block>
+        </value>
+      </block> -->
+
+      <block type="text">
+        <field name="TEXT">Hello</field>
+      </block>
+
+      <block type="text_join">
+        <value name="ADD0">
+          <block type="text">
+            <field name="TEXT">Hello</field>
+          </block>
+        </value>
+        <value name="ADD1">
+          <block type="text">
+            <field name="TEXT">World</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="text_length">
+        <value name="VALUE">
+          <block type="text">
+            <field name="TEXT">Blockly</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="variables_set">
+        <field name="VAR">item</field>
+        <value name="VALUE">
+          <block type="math_number">
+            <field name="NUM">10</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="variables_get">
+        <field name="VAR">item</field>
+      </block>
+
+      <block type="variables_set">
+        <field name="VAR">counter</field>
+        <value name="VALUE">
+          <block type="math_number">
+            <field name="NUM">0</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="controls_if">
+        <value name="IF0">
+          <block type="logic_boolean">
+            <field name="BOOL">TRUE</field>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="math_number">
+            <field name="NUM">10</field>
+          </block>
+        </statement>
+      </block>
+
+      <block type="controls_repeat_ext">
+        <value name="TIMES">
+          <block type="math_number">
+            <field name="NUM">5</field>
+          </block>
+        </value>
+        <statement name="DO">
+          <block type="math_number">
+            <field name="NUM">1</field>
+          </block>
+        </statement>
+      </block>
+
+      <block type="controls_for">
+        <field name="VAR">i</field>
+        <value name="FROM">
+          <block type="math_number">
+            <field name="NUM">0</field>
+          </block>
+        </value>
+        <value name="TO">
+          <block type="math_number">
+            <field name="NUM">10</field>
+          </block>
+        </value>
+        <statement name="DO">
+          <block type="math_number">
+            <field name="NUM">i</field>
+          </block>
+        </statement>
+      </block>
+
+      <block type="logic_boolean">
+        <field name="BOOL">TRUE</field>
+      </block>
+
+      <block type="logic_compare">
+        <field name="OP">EQ</field>
+        <value name="A">
+          <block type="math_number">
+            <field name="NUM">10</field>
+          </block>
+        </value>
+        <value name="B">
+          <block type="math_number">
+            <field name="NUM">5</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="logic_operation">
+        <field name="OP">AND</field>
+        <value name="A">
+          <block type="logic_boolean">
+            <field name="BOOL">TRUE</field>
+          </block>
+        </value>
+        <value name="B">
+          <block type="logic_boolean">
+            <field name="BOOL">FALSE</field>
+          </block>
+        </value>
+      </block>
+
+      <block type="procedures_defnoreturn">
+        <field name="NAME">doSomething</field>
+        <statement name="STACK">
+          <block type="math_number">
+            <field name="NUM">5</field>
+          </block>
+        </statement>
+      </block>
+
+      <block type="procedures_callnoreturn">
+        <field name="NAME">doSomething</field>
+      </block>
+    </category>
+  </xml>
+
+  <!-- Port selection modal -->
+  <div id="portSelectionModal">
+    <div class="box">
+      <h3>Digital Pins</h3>
+      <div class="box1">
+        <div class="row"><label><input type="checkbox" id="portD3"> D3</label></div>
+        <div class="row"><label><input type="checkbox" id="portD4"> D4</label></div>
+        <div class="row"><label><input type="checkbox" id="portD5"> D5</label></div>
+        <div class="row"><label><input type="checkbox" id="portD6"> D6</label></div>
+        <div class="row"><label><input type="checkbox" id="portE3"> E3</label></div>
+        <div class="row"><label><input type="checkbox" id="portG4"> G4</label></div>
+        <div class="row"><label><input type="checkbox" id="portG5"> G5</label></div>
+        <div class="row"><label><input type="checkbox" id="portG6"> G6</label></div>
+      </div>
+      <div class="box2">
+        <div class="row"><label><input type="checkbox" id="portD7"> D7</label></div>
+        <div class="row"><label><input type="checkbox" id="portE0"> E0</label></div>
+        <div class="row"><label><input type="checkbox" id="portE1"> E1</label></div>
+        <div class="row"><label><input type="checkbox" id="portG3"> G3</label></div>
+        <div class="row"><label><input type="checkbox" id="portG0"> G0</label></div>
+        <div class="row"><label><input type="checkbox" id="portG1"> G1</label></div>
+        <div class="row"><label><input type="checkbox" id="portG2"> G2</label></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button onclick="savePortSelection()">Save</button>
+        <button onclick="closePortModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Servo selection modal -->
+  <div id="servoSelectionModal"
+    style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;">
+    <div class="box box-motor" style="width:750px;">
+      <h3>Servo Configuration</h3>
+      <div style="display:flex;flex-direction:row;width:100%;gap:30px;justify-content:space-around;">
+        <div style="flex:1;border-right:2px solid #eee;padding-right:20px;">
+          <h4 style="text-align:center;">Select Ports</h4>
+          <div class="box1 motor-box1">
+            <div class="motor-box1-p1">
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_E11" value="E11"><label class="tgl-btn" data-tg-off="E11" data-tg-on="E11 ON"
+                  for="s_E11"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_E12" value="E12"><label class="tgl-btn" data-tg-off="E12" data-tg-on="E12 ON"
+                  for="s_E12"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_E13" value="E13"><label class="tgl-btn" data-tg-off="E13" data-tg-on="E13 ON"
+                  for="s_E13"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_E14" value="E14"><label class="tgl-btn" data-tg-off="E14" data-tg-on="E14 ON"
+                  for="s_E14"></label></div>
+            </div>
+            <div class="motor-box1-p2">
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_C8" value="C8"><label class="tgl-btn" data-tg-off="C8" data-tg-on="C8 ON" for="s_C8"></label>
+              </div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_C9" value="C9"><label class="tgl-btn" data-tg-off="C9" data-tg-on="C9 ON" for="s_C9"></label>
+              </div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_B15" value="B15"><label class="tgl-btn" data-tg-off="B15" data-tg-on="B15 ON"
+                  for="s_B15"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" name="servoPort"
+                  id="s_D15" value="D15"><label class="tgl-btn" data-tg-off="D15" data-tg-on="D15 ON"
+                  for="s_D15"></label></div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+          <h4 style="text-align:center;">Set Angle</h4>
+          <div class="servo-meter" style="transform:scale(0.65);margin-top:-40px;margin-bottom:-40px;">
+            <div class="gauge-background"></div>
+            <div class="fill-cover" id="servoFill"></div>
+            <div class="center-hole"></div>
+            <div class="text-area-servo">
+              <h3>Angle</h3>
+              <p id="angle-text">0°</p>
+            </div>
+            <div class="center-point-servo"></div>
+            <div class="arrow-wrapper-servo" id="servoNeedle">
+              <div class="speed-arrow-servo"></div>
+            </div>
+          </div>
+          <div class="btn-con">
+            <button type="button" id="Incerease" onclick="changeServoAngle(15)"
+              style="padding:10px 20px;background-color:#4CAF50;">+ Increase</button>
+            <button type="button" id="Decerease" onclick="changeServoAngle(-15)"
+              style="padding:10px 20px;background-color:#F44336;">- Decrease</button>
+          </div>
+        </div>
+      </div>
+      <div
+        style="display:flex;gap:15px;justify-content:center;margin-top:20px;border-top:1px solid #eee;padding-top:15px;">
+        <button onclick="saveServoSelection()" style="background:#4CAF50;color:white;border-radius:5px;">Save</button>
+        <button onclick="closeServoModal()" style="background:#f44336;color:white;border-radius:5px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Motor selection modal -->
+  <div id="motorSelectionModal" style="display:none;">
+    <div class="box">
+      <h3>Select Motor(s)</h3>
+      <div class="box1">
+        <div class="row"><label><input type="checkbox" id="motorE11"> E11</label></div>
+        <div class="row"><label><input type="checkbox" id="motorE12"> E12</label></div>
+        <div class="row"><label><input type="checkbox" id="motorC9"> C9</label></div>
+        <div class="row"><label><input type="checkbox" id="motorC8"> C8</label></div>
+        <div class="row"><label><input type="checkbox" id="motorE13"> E13</label></div>
+        <div class="row"><label><input type="checkbox" id="motorB15"> B15</label></div>
+        <div class="row"><label><input type="checkbox" id="motorD15"> D15</label></div>
+        <div class="row"><label><input type="checkbox" id="motorE14"> E14</label></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button onclick="saveMotorSelection()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LED pin selection modal -->
+  <div id="ledPinSelectionModal">
+    <div class="box">
+      <h3>Analog Pins</h3>
+      <div class="box1">
+        <div class="row"><label><input type="checkbox" id="ledPinC0"> C0</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC1"> C1</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC2"> C2</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF9"> F9</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA3"> A3</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF3"> F3</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF4"> F4</label></div>
+      </div>
+      <div class="box2">
+        <div class="row"><label><input type="checkbox" id="ledPinF5"> F5</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC4"> C4</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinC5"> C5</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA1"> A1</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA2"> A2</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA4"> A4</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinF8"> F8</label></div>
+        <div class="row"><label><input type="checkbox" id="ledPinA6"> A6</label></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button type="button" onclick="saveLedPinSelection()">Save</button>
+        <button type="button" onclick="closeLedPinModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="wifiSettingsModal" style="display:none;">
+    <div class="box">
+      <h3>WiFi Configuration</h3>
+      <div class="row" style="width:100%;margin-bottom:10px;">
+        <input type="text" id="wifiSSID" placeholder="Enter SSID Name"
+          style="width:90%;padding:8px;border-radius:5px;border:1px solid #ccc;">
+      </div>
+      <div class="row" style="width:100%;margin-bottom:15px;">
+        <input type="password" id="wifiPass" placeholder="Enter Password"
+          style="width:90%;padding:8px;border-radius:5px;border:1px solid #ccc;">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button onclick="saveWifiSettings()">Save & Connect</button>
+        <button onclick="closeWifiModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Motor Modal -->
+  <div id="unifiedMotorModal"
+    style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;">
+    <div class="box box-motor">
+      <h3>Motor Configuration</h3>
+      <div style="display:flex;flex-direction:row;width:100%;gap:30px;justify-content:space-around;">
+        <div style="flex:1;border-right:2px solid #eee;padding-right:20px;">
+          <h4 style="text-align:center;">Select Ports</h4>
+          <div class="box1 motor-box1">
+            <div class="motor-box1-p1">
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorE11"><label
+                  class="tgl-btn" data-tg-off="E11 OFF" data-tg-on="E11 ON" for="uni_motorE11"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorE12"><label
+                  class="tgl-btn" data-tg-off="E12" data-tg-on="E12 ON" for="uni_motorE12"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorE13"><label
+                  class="tgl-btn" data-tg-off="E13" data-tg-on="E13 ON" for="uni_motorE13"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorE14"><label
+                  class="tgl-btn" data-tg-off="E14" data-tg-on="E14 ON" for="uni_motorE14"></label></div>
+            </div>
+            <div class="motor-box1-p2">
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorC8"><label
+                  class="tgl-btn" data-tg-off="C8" data-tg-on="C8 ON" for="uni_motorC8"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorC9"><label
+                  class="tgl-btn" data-tg-off="C9" data-tg-on="C9 ON" for="uni_motorC9"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorB15"><label
+                  class="tgl-btn" data-tg-off="B15" data-tg-on="B15 ON" for="uni_motorB15"></label></div>
+              <div class="row checkbox-wrapper-8"><input class="tgl tgl-skewed" type="checkbox" id="uni_motorD15"><label
+                  class="tgl-btn" data-tg-off="D15" data-tg-on="D15 ON" for="uni_motorD15"></label></div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+          <h4 style="text-align:center;">Set Speed</h4>
+          <div class="speed-meter" id="speedoGauge" style="transform:scale(0.7);margin-top:-30px;margin-bottom:-30px;">
+            <div class="text-area">
+              <div class="speed-percentage">
+                <h3>Speed</h3>
+                <p id="speed-val">0<span>%</span></p>
+              </div>
+            </div>
+            <div class="center-point"></div>
+            <div class="speed-scale speed-scale-1 active"></div>
+            <div class="speed-scale speed-scale-2"></div>
+            <div class="speed-scale speed-scale-3"></div>
+            <div class="speed-scale speed-scale-4"></div>
+            <div class="speed-scale speed-scale-5"></div>
+            <div class="speed-scale speed-scale-6"></div>
+            <div class="speed-scale speed-scale-7"></div>
+            <div class="speed-bg-hide"></div>
+            <div class="speed-half-hide"></div>
+            <div class="arrow-con">
+              <div class="arrow-wrapper arrow-speed-1">
+                <div class="speed-arrow"></div>
+              </div>
+            </div>
+            <div class="inbtns">
+              <button id="btnIncrease" style="background-color:#4CAF50;">Increase</button>
+              <button id="btnDecrease" style="background-color:#F44336;">Decrease</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        style="display:flex;gap:15px;justify-content:center;margin-top:20px;border-top:1px solid #eee;padding-top:15px;">
+        <button onclick="saveUnifiedSelection()" style="background:#4CAF50;color:white;padding:10px 30px;">Save
+          Configuration</button>
+        <button onclick="closeUnifiedModal()" style="background:#f44336;color:white;padding:10px 30px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLUETOOTH MODAL -->
+  <div class="modal-overlay" id="btModal">
+    <div class="bt-popup">
+      <div class="bt-header"><i class="fa-solid fa-hexagon-nodes"></i> BLUETOOTH CONNECT</div>
+      <div class="bt-subtext">Select your STM32 board via Bluetooth</div>
+      <div class="bt-device-list" id="deviceList"></div>
+      <div class="bt-footer">
+        <button class="bt-btn" id="scanBtn" onclick="startScan()">
+          <i class="fa-solid fa-magnifying-glass"></i> SCAN
+        </button>
+        <button class="bt-btn" style="background:#e2e8f0;" onclick="closeBT()">CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/blockly/script.js"></script>
+</body>
+
+</html>

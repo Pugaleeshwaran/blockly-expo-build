@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.blocklystemapp",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Allow this app to connect to your STM32 Robot."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +25,14 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.blocklystemapp"
+      "package": "com.anonymous.blocklystemapp",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,7 +41,13 @@
       "**/*"
     ],
     "plugins": [
-      "react-native-ble-plx",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": ["scan", "connect"]
+        }
+      ],
       "expo-asset"
     ]
   }
