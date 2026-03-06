@@ -1716,8 +1716,10 @@
       <block type="sen_ultrasonic"></block>
       <block type="sen_temp"></block>
     </category>
-    <category name="SPI" colour="#2EB061">
 
+
+    <category name="SPI" colour="#2EB061">
+      <block type="rfid"></block>
       <block type="sensor"></block>
       <block type="tem_sensor"></block>
       <block type="xray_sensor"></block>
@@ -1732,6 +1734,7 @@
       <block type="lp_start"></block>
       <block type="lp_repeat_count"></block>
       <block type="lp_label"></block>
+      <block type="compare"></block>
     </category>
     <category name="Delay" colour="#FFB56A">
       <block type="ctl_delay"></block>
@@ -3179,6 +3182,14 @@
           extensions: ["port_image_click", "led_style"]
         },
         {
+          type: "rfid",
+          message0: "RFID",
+
+          style: "control_blocks",
+          output: "Boolean",
+          extensions: ["temp_style"]
+        },
+        {
           type: "finger_print_enroll",
           message0: "Fingerprint Enroll",
 
@@ -3384,6 +3395,21 @@
           nextStatement: null,
           extensions: ["temp_style", "key_pin_image_click"]
         },
+        {
+          type: "compare",
+          message0: "RDX %1 %2",
+          args0: [{
+            type: "input_value",
+            name: "NAME",
+          },
+          {
+            type: "input_value",
+            name: "NAME2",
+          }],
+          previousStatement: null,
+          nextStatement: null,
+          extensions: ["dc_color"]
+        },
       ]);
 
       // Extensions
@@ -3459,6 +3485,7 @@
         const fn = b.getFieldValue('STATE') === '1' ? 'robot.led_on' : 'robot.led_off';
         return ports.map(p => `${fn}(${p})\n`).join('');
       };
+      py['rfid'] = b => [`rfid()`, py.ORDER_ATOMIC];
       py['bt_send'] = b => { const t = py.valueToCode(b, 'TEXT', py.ORDER_NONE) || "''"; return `robot.bt_send(${t})\n`; };
       py['sen_ultrasonic'] = b => `distance = robot.ultrasonic_cm(${b.getFieldValue('PORT') || 0})\n`;
       py['sen_temp'] = b => { const pins = (b.getFieldValue('PORTS') || '').split(',').map(s => s.trim()).filter(Boolean); if (!pins.length) return "# no pins\n"; return pins.map(p => `temp_port(${p})\n`).join(''); };
@@ -3578,6 +3605,11 @@
         }
         const portList = ports.map(p => `"${p}"`).join(', ');
         return `keypad(${portList})\n`;
+      };
+      py['compare'] = function (b) {
+        var name = Blockly.Python.valueToCode(b, 'NAME', Blockly.Python.ORDER_NONE); // Correct way to get field value
+        var name2 = Blockly.Python.valueToCode(b, 'NAME2', Blockly.Python.ORDER_NONE);
+        return `${name || ''} = ${name2 || ''} \n`;  // Ensure empty string fallback
       };
 
     }
