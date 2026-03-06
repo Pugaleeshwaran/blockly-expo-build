@@ -1662,6 +1662,7 @@
       <block type="voltage_sensor"></block>
       <block type="humidity"></block>
       <block type="ldr"></block>
+      <block type="piezo_sensor"></block>
     </category>
     <category name="I2c" colour="#A020F0">
       <block type="magnetic_sensor"></block>
@@ -3282,6 +3283,29 @@
         { type: "shock_sensor", message0: "Shock Sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["servo_color", "led_pin_image_click"] },
         { type: "flex-sensor", message0: "flex %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], output: "Boolean", extensions: ["led_pin_image_click", "servo_color"] },
         { type: "humidity", message0: "Huminity %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], output: "Boolean", extensions: ["led_pin_image_click", "servo_color"] },
+        {
+          type: "piezo_sensor",
+          message0: "Piezo %1 %2 ",
+          args0: [
+            {
+              type: "field_image",
+              src: "./assets/img/Chips_Chips_Show.png",
+              width: 15,
+              height: 15,
+              alt: "",
+              name: "IMG"
+            },
+            {
+              type: "field_label",
+              name: "PORTS",
+              text: ""
+            },
+
+          ],
+          output: "Boolean",
+          extensions: ["led_pin_image_click", "servo_color"]
+        },
+
         { type: "buzzer_component", message0: "buzzer_component %1 %2 %3 %4 %5", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }, { type: "field_number", name: "freq", value: 1 }, { type: "field_number", name: "Delay1", value: 1000 }, { type: "field_number", name: "DELAY2", value: 1000 }], colour: "#81d4ed", previousStatement: null, nextStatement: null, extensions: ["port_image_click", "servo_color"] },
         { type: "joystick_move", args0: [{ type: "field_label", name: "LABEL", text: "joystick" }, { type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG", class: "hover-animate" }, { type: "field_label", name: "PORTS", text: "" }], message0: "%1 %2 %3", colour: "#ffb56a", output: "Boolean", extensions: ["port_image_click", "servo_color"] },
         { type: "Air_quality_sensor", message0: "Air-quality-sensor %1 %2", args0: [{ type: "field_image", src: "./assets/img/Chips_Chips_Show.png", width: 15, height: 15, alt: "", name: "IMG" }, { type: "field_label", name: "PORTS", text: "" }], style: "control_blocks", output: "Boolean", extensions: ["servo_color", "led_pin_image_click"] },
@@ -3511,6 +3535,7 @@
 
       // Sensor output blocks
       const sensorOutputMap = { din_sound: 'sound', din_tilt: 'tilt', din_door: 'get_door', din_button: 'button', din_motion: 'motion', light_freq: 'light_freq', din_proximity: 'get_proximity', din_ir: 'get_ir', din_flame: 'get_flame', load_cell: 'load_cell', tep_ana: 'temp_ana_sensor', heart_beat: 'heart_beat', ldr: 'LDR', soil_moisture: 'soil_moisture', dust: 'dust', 'vibration-switch-sensor': 'vibration_sensor', 'Current-sensor': 'current', 'IR-Temp': 'IrTemp', 'temp2-sensor': 'tempanalog', ecg: 'ecg', ana_temp: 'ana_temp', shock_sensor: 'shock_sensor', 'flex-sensor': 'flex', humidity: 'humidity', joystick_move: 'joy_stick', Air_quality_sensor: 'air_quality_sensor', flexi_force_sensor: 'flexi_sensor', TDS_Water_sensor: 'tds_sensor', 'water-turbidity-sensor': 'waterturbidity', ir_sen: 'IR', din_ultra: 'ultrasonic', voltage_sensor: 'voltage', water_sensor: 'water_sen' };
+
       Object.entries(sensorOutputMap).forEach(([type, fn]) => {
         py[type] = b => {
           const pins = (b.getFieldValue('PORTS') || '').split(',').map(p => p.trim()).filter(Boolean);
@@ -3518,6 +3543,35 @@
           return [`${fn}(${pins.map(p => `"${p}"`).join(',')})`, py.ORDER_FUNCTION_CALL];
         };
       });
+
+      Blockly.Python['piezo_sensor'] = function (block) {
+        const portsTxt = block.getFieldValue('PORTS') || '';
+
+        // Split ports like "D3,H1"
+        const pins = portsTxt
+          .split(',')
+          .map(p => p.trim())
+          .filter(Boolean);
+
+        // If no ports are selected, show a warning message
+        if (!pins.length) {
+          return ['# Invalid: Please select at least one port', Blockly.Python.ORDER_NONE];
+        }
+
+        // If one port is selected, return code for that port only
+        if (pins.length === 1) {
+          return [`piezo_sensor("${pins[0]}")`, Blockly.Python.ORDER_FUNCTION_CALL];
+        }
+
+        // If two ports are selected, use both for Trig and Echo
+        if (pins.length === 2) {
+          return [`piezo_sensor("${pins[0]}","${pins[1]}")`, Blockly.Python.ORDER_FUNCTION_CALL];
+        }
+
+        // If more than two ports are selected, return the first two only
+        return [`piezo_sensor("${pins[0]}","${pins[1]}","${pins[2]}")`, Blockly.Python.ORDER_FUNCTION_CALL];
+      };
+
       Blockly.Python['touch_sensor'] = function (block) {
         const portsTxt = block.getFieldValue('PORTS') || '';
 
