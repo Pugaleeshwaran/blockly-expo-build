@@ -1460,6 +1460,8 @@
       <block type="LCD_print"></block>
     </category>
     <category name="Tx-Rx" colour="#C0603E">
+      <block type="finger_print_enroll"></block>
+      <block type="finger_print_match"></block>
       <block type="mini_motor"></block>
       <block type="remote_motor"></block>
       <block type="water_motor"></block>
@@ -1470,6 +1472,7 @@
       <block type="sen_temp"></block>
     </category>
     <category name="SPI" colour="#2EB061">
+
       <block type="sensor"></block>
       <block type="tem_sensor"></block>
       <block type="xray_sensor"></block>
@@ -2782,6 +2785,22 @@
           extensions: ["port_image_click", "led_style"]
         },
         {
+          type: "finger_print_enroll",
+          message0: "Fingerprint Enroll",
+
+          style: "control_blocks",
+          output: "Boolean",
+          extensions: ["temp_style"]
+        },
+        {
+          type: "finger_print_match",
+          message0: "Fingerprint Match ",
+
+          style: "control_blocks",
+          output: "Boolean",
+          extensions: ["temp_style"]
+        },
+        {
           type: "sen_ultrasonic",
           message0: "ultrasonic distance on port %1",
           args0: [{
@@ -3037,6 +3056,8 @@
       py['temp_sensor'] = () => [`temp_sensor()`, py.ORDER_ATOMIC];
       py['accelerometer'] = () => [`accelerometer()`, py.ORDER_ATOMIC];
       py['ambient-sen'] = () => [`ambient()`, py.ORDER_ATOMIC];
+      py['finger_print_enroll'] = b => [`fingerprint_enroll()`, py.ORDER_ATOMIC];
+      py['finger_print_match'] = b => [`fingerprint_match()`, py.ORDER_ATOMIC];
       py['any_input_block'] = b => [b.getFieldValue('ANY'), py.ORDER_ATOMIC];
       py['custom_if_then'] = b => { const cond = py.valueToCode(b, 'CONDITION', py.ORDER_NONE) || 'False'; const stmts = py.statementToCode(b, 'DO'); return `if ${cond}:\n${stmts || '    pass\n'}`; };
       py['rgb_led_display'] = b => { const led = b.getFieldValue('LED'); const hex = b.getFieldValue('COLOR') || "#ff0000"; const time = py.valueToCode(b, 'TIME', py.ORDER_ATOMIC) || 1; const r = parseInt(hex.substring(1, 3), 16); const g = parseInt(hex.substring(3, 5), 16); const bv = parseInt(hex.substring(5, 7), 16); return `rgb_led("${led}",${r},${g},${bv},${time})\n`; };
